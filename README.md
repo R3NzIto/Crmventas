@@ -69,6 +69,7 @@ npm run test:e2e         # Playwright E2E
 npm run prisma:migrate   # Prisma migrate dev con .env.local
 npm run db:seed          # Seed demo
 npm run worker:workflows # Worker BullMQ de automatizaciones
+npm run worker:inbox     # Worker BullMQ de mensajes inbound
 ```
 
 ## Healthcheck

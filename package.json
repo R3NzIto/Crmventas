@@ -16,7 +16,8 @@
     "prisma:migrate": "dotenv -e .env.local -- prisma migrate dev",
     "db:seed": "dotenv -e .env.local -- prisma db seed",
     "db:studio": "dotenv -e .env.local -- prisma studio",
-    "worker:workflows": "dotenv -e .env.local -- tsx src/workers/workflow-execution.worker.ts"
+    "worker:workflows": "dotenv -e .env.local -- tsx src/workers/workflow-execution.worker.ts",
+    "worker:inbox": "dotenv -e .env.local -- tsx src/workers/inbox-processing.worker.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
