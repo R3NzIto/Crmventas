@@ -1,0 +1,362 @@
+"use client";
+
+import { DndContext, type DragEndEvent, useDraggable, useDroppable } from "@dnd-kit/core";
+import { GripVertical, Plus, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+
+interface PipelineContact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+}
+
+interface PipelineDeal {
+  id: string;
+  stageId: string;
+  contactId: string;
+  title: string;
+  value: number;
+  closeDate: string | null;
+  status: "open" | "won" | "lost";
+  contact: PipelineContact;
+}
+
+interface PipelineStage {
+  id: string;
+  pipelineId: string;
+  name: string;
+  order: number;
+  color: string | null;
+  deals: PipelineDeal[];
+}
+
+interface Pipeline {
+  id: string;
+  name: string;
+  stages: PipelineStage[];
+}
+
+interface ContactOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+}
+
+interface PipelinesResponse {
+  data: Pipeline[];
+}
+
+interface ContactsResponse {
+  data: ContactOption[];
+}
+
+function contactName(contact: PipelineContact | ContactOption): string {
+  return `${contact.firstName} ${contact.lastName}`.trim() || contact.email || "Unnamed contact";
+}
+
+function Deal({ deal }: { deal: PipelineDeal }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: deal.id });
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+
+  return (
+    <div ref={setNodeRef} style={style} className="rounded-md border bg-background p-3 shadow-sm" {...listeners} {...attributes}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium">{deal.title}</p>
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{contactName(deal.contact)}</p>
+      <p className="mt-3 text-sm font-semibold">${deal.value.toLocaleString()}</p>
+    </div>
+  );
+}
+
+function Stage({ stage }: { stage: PipelineStage }) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+
+  return (
+    <div ref={setNodeRef} className={cn("min-h-[28rem] rounded-lg border bg-muted/40 p-3", isOver && "ring-2 ring-primary")}>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color ?? "#64748b" }} />
+          <h2 className="text-sm font-semibold">{stage.name}</h2>
+        </div>
+        <span className="text-xs text-muted-foreground">{stage.deals.length}</span>
+      </div>
+      <div className="space-y-3">
+        {stage.deals.map((deal) => (
+          <Deal key={deal.id} deal={deal} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PipelineBoard() {
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [contacts, setContacts] = useState<ContactOption[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
+  const [dealDialogOpen, setDealDialogOpen] = useState(false);
+
+  const selectedPipeline = useMemo(
+    () => pipelines.find((pipeline) => pipeline.id === selectedPipelineId) ?? pipelines[0],
+    [pipelines, selectedPipelineId]
+  );
+
+  async function loadPipelines(): Promise<void> {
+    setLoading(true);
+    setError(null);
+    try {
+      const [pipelineResponse, contactsResponse] = await Promise.all([fetch("/api/pipelines"), fetch("/api/contacts")]);
+      if (!pipelineResponse.ok || !contactsResponse.ok) {
+        throw new Error("No se pudieron cargar los pipelines");
+      }
+      const pipelinePayload = (await pipelineResponse.json()) as PipelinesResponse;
+      const contactPayload = (await contactsResponse.json()) as ContactsResponse;
+      setPipelines(pipelinePayload.data);
+      setContacts(contactPayload.data);
+      if (!selectedPipelineId && pipelinePayload.data[0]) {
+        setSelectedPipelineId(pipelinePayload.data[0].id);
+      }
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar los pipelines");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadPipelines();
+  }, []);
+
+  function updateDealStageLocally(dealId: string, stageId: string): Pipeline[] {
+    return pipelines.map((pipeline) => {
+      let movedDeal: PipelineDeal | null = null;
+      const stagesWithoutDeal = pipeline.stages.map((stage) => {
+        const deal = stage.deals.find((item) => item.id === dealId);
+        if (deal) {
+          movedDeal = { ...deal, stageId };
+        }
+        return { ...stage, deals: stage.deals.filter((item) => item.id !== dealId) };
+      });
+      if (!movedDeal) {
+        return pipeline;
+      }
+      const dealToMove = movedDeal;
+      return {
+        ...pipeline,
+        stages: stagesWithoutDeal.map((stage) => (stage.id === stageId ? { ...stage, deals: [...stage.deals, dealToMove] } : stage))
+      };
+    });
+  }
+
+  async function handleDragEnd(event: DragEndEvent): Promise<void> {
+    const dealId = String(event.active.id);
+    const stageId = event.over?.id ? String(event.over.id) : undefined;
+    if (!stageId) {
+      return;
+    }
+    const previousPipelines = pipelines;
+    setPipelines(updateDealStageLocally(dealId, stageId));
+    setError(null);
+
+    const response = await fetch(`/api/deals/${dealId}/stage`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stageId })
+    });
+    if (!response.ok) {
+      setPipelines(previousPipelines);
+      setError("No se pudo mover la oportunidad");
+    }
+  }
+
+  async function createPipeline(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const name = String(formData.get("name") ?? "").trim();
+    if (!name) {
+      return;
+    }
+    setSaving(true);
+    const response = await fetch("/api/pipelines", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        stages: [
+          { name: "New", order: 0, color: "#2563eb" },
+          { name: "Qualified", order: 1, color: "#10b981" },
+          { name: "Proposal", order: 2, color: "#f59e0b" },
+          { name: "Won", order: 3, color: "#334155" }
+        ]
+      })
+    });
+    setSaving(false);
+    if (!response.ok) {
+      setError("No se pudo crear el pipeline");
+      return;
+    }
+    setPipelineDialogOpen(false);
+    await loadPipelines();
+  }
+
+  async function createDeal(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedPipeline) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const title = String(formData.get("title") ?? "").trim();
+    const contactId = String(formData.get("contactId") ?? "");
+    const stageId = String(formData.get("stageId") ?? "");
+    const value = Number(formData.get("value") ?? 0);
+    if (!title || !contactId || !stageId) {
+      return;
+    }
+
+    setSaving(true);
+    const response = await fetch(`/api/pipelines/${selectedPipeline.id}/deals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, contactId, stageId, value, status: "open" })
+    });
+    setSaving(false);
+    if (!response.ok) {
+      setError("No se pudo crear la oportunidad");
+      return;
+    }
+    setDealDialogOpen(false);
+    await loadPipelines();
+  }
+
+  return (
+    <section className="space-y-5 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Pipelines</h1>
+          <p className="text-sm text-muted-foreground">Mueve oportunidades por etapas comerciales de la agencia.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={selectedPipeline?.id ?? ""}
+            onChange={(event) => setSelectedPipelineId(event.target.value)}
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+          >
+            {pipelines.map((pipeline) => (
+              <option key={pipeline.id} value={pipeline.id}>
+                {pipeline.name}
+              </option>
+            ))}
+          </select>
+          <Dialog open={pipelineDialogOpen} onOpenChange={setPipelineDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Plus className="h-4 w-4" />
+                Pipeline
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Crear pipeline</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Crea un tablero de ventas con etapas para ordenar oportunidades.
+              </DialogDescription>
+            </DialogHeader>
+              <form onSubmit={(event) => void createPipeline(event)} className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="pipelineName">Nombre</Label>
+                  <Input id="pipelineName" name="name" required />
+                </div>
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Guardando..." : "Crear"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={dealDialogOpen} onOpenChange={setDealDialogOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={!selectedPipeline || contacts.length === 0}>
+                <Plus className="h-4 w-4" />
+                Oportunidad
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Crear oportunidad</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Selecciona un contacto, valor y etapa inicial para la oportunidad.
+              </DialogDescription>
+            </DialogHeader>
+              <form onSubmit={(event) => void createDeal(event)} className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="dealTitle">Titulo</Label>
+                  <Input id="dealTitle" name="title" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dealValue">Valor</Label>
+                  <Input id="dealValue" name="value" type="number" min="0" defaultValue="0" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dealContact">Contacto</Label>
+                  <select id="dealContact" name="contactId" className="h-9 w-full rounded-md border bg-background px-3 text-sm" required>
+                    {contacts.map((contact) => (
+                      <option key={contact.id} value={contact.id}>
+                        {contactName(contact)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dealStage">Etapa</Label>
+                  <select id="dealStage" name="stageId" className="h-9 w-full rounded-md border bg-background px-3 text-sm" required>
+                    {selectedPipeline?.stages.map((stage) => (
+                      <option key={stage.id} value={stage.id}>
+                        {stage.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Guardando..." : "Crear"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={() => void loadPipelines()} disabled={loading}>
+            <RefreshCw className="h-4 w-4" />
+          Actualizar
+          </Button>
+        </div>
+      </div>
+
+      {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+
+      {loading ? (
+        <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Cargando pipeline...</div>
+      ) : !selectedPipeline ? (
+        <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Crea un pipeline para empezar a gestionar oportunidades.</div>
+      ) : selectedPipeline.stages.length === 0 ? (
+        <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Este pipeline no tiene etapas.</div>
+      ) : (
+        <DndContext onDragEnd={(event) => void handleDragEnd(event)}>
+          <div className="grid min-w-[56rem] gap-4 overflow-x-auto md:grid-cols-2 xl:grid-cols-4">
+            {selectedPipeline.stages.map((stage) => (
+              <Stage key={stage.id} stage={stage} />
+            ))}
+          </div>
+        </DndContext>
+      )}
+    </section>
+  );
+}

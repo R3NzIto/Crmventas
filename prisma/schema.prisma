@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  super_admin
+  agency_admin
+  agency_user
+}
+
+enum DealStatus {
+  open
+  won
+  lost
+}
+
+enum ConversationChannel {
+  email
+  sms
+  whatsapp
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+  SNOOZED
+}
+
+enum LeadIntent {
+  pricing
+  demo
+  buying_interest
+  support
+  spam
+  follow_up
+  other
+}
+
+enum LeadUrgency {
+  low
+  medium
+  high
+}
+
+enum WorkflowExecutionStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+model Agency {
+  id           String         @id @default(cuid())
+  name         String
+  slug         String         @unique
+  logo         String?
+  primaryColor String?
+  plan         String
+  createdAt    DateTime       @default(now())
+  users        User[]
+  contacts     Contact[]
+  pipelines    Pipeline[]
+  conversations Conversation[]
+  workflows    Workflow[]
+  forms        Form[]
+  channelConfig AgencyChannelConfig?
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  hashedPassword String
+  role           UserRole
+  agencyId       String
+  agency         Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  assignedConversations Conversation[] @relation("AssignedConversations")
+}
+
+model Contact {
+  id              String           @id @default(cuid())
+  agencyId        String
+  agency          Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  tags            String[]         @default([])
+  customFields    Json             @default("{}")
+  source          String?
+  createdAt       DateTime         @default(now())
+  deals           Deal[]
+  conversations   Conversation[]
+  leadQualifications LeadQualification[]
+  workflowRuns    WorkflowExecution[]
+  formSubmissions FormSubmission[]
+
+  @@index([agencyId])
+  @@index([agencyId, email])
+}
+
+model Pipeline {
+  id        String   @id @default(cuid())
+  agencyId  String
+  agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  stages    Stage[]
+
+  @@index([agencyId])
+}
+
+model Stage {
+  id         String   @id @default(cuid())
+  pipelineId String
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  name       String
+  order      Int
+  color      String?
+  deals      Deal[]
+
+  @@index([pipelineId])
+}
+
+model Deal {
+  id        String     @id @default(cuid())
+  stageId   String
+  stage     Stage      @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  title     String
+  value     Float
+  closeDate DateTime?
+  status    DealStatus @default(open)
+
+  @@index([stageId])
+  @@index([contactId])
+}
+
+model Conversation {
+  id            String              @id @default(cuid())
+  agencyId      String
+  agency        Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  contactId     String
+  contact       Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel       ConversationChannel
+  lastMessageAt DateTime?
+  status        ConversationStatus   @default(OPEN)
+  assignedToId  String?
+  assignedTo    User?                @relation("AssignedConversations", fields: [assignedToId], references: [id], onDelete: SetNull)
+  unreadCount   Int                  @default(0)
+  messages      Message[]
+  leadQualifications LeadQualification[]
+
+  @@index([agencyId])
+  @@index([contactId])
+  @@index([assignedToId])
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      MessageDirection
+  content        String
+  status         String
+  sentAt         DateTime?
+  metadata       Json?
+  readAt         DateTime?
+  leadQualification LeadQualification?
+
+  @@index([conversationId])
+}
+
+model Workflow {
+  id         String              @id @default(cuid())
+  agencyId   String
+  agency     Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name       String
+  trigger    Json
+  steps      Json[]              @default([])
+  isActive   Boolean             @default(false)
+  executions WorkflowExecution[]
+  forms      Form[]
+
+  @@index([agencyId])
+}
+
+model WorkflowExecution {
+  id        String                  @id @default(cuid())
+  workflowId String
+  workflow   Workflow                @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  contactId  String
+  contact    Contact                 @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status     WorkflowExecutionStatus @default(pending)
+  log        Json[]                  @default([])
+  startedAt  DateTime                @default(now())
+
+  @@index([workflowId])
+  @@index([contactId])
+}
+
+model Form {
+  id              String           @id @default(cuid())
+  agencyId        String
+  agency          Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name            String
+  fields          Json[]           @default([])
+  workflowId      String?
+  workflow        Workflow?        @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  submissions     FormSubmission[]
+
+  @@index([agencyId])
+}
+
+model FormSubmission {
+  id          String   @id @default(cuid())
+  formId      String
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  data        Json
+  submittedAt DateTime @default(now())
+
+  @@index([formId])
+  @@index([contactId])
+}
+
+model AgencyChannelConfig {
+  id             String   @id @default(cuid())
+  agencyId       String   @unique
+  agency         Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  emailConfig    Json?
+  smsConfig      Json?
+  whatsappConfig Json?
+  updatedAt      DateTime @updatedAt
+}
+
+model LeadQualification {
+  id                String       @id @default(cuid())
+  agencyId          String
+  contactId         String
+  conversationId    String
+  messageId         String       @unique
+  isLead            Boolean
+  leadScore         Int
+  intent            LeadIntent
+  urgency           LeadUrgency
+  summary           String
+  recommendedAction String
+  suggestedTags     String[]     @default([])
+  raw               Json?
+  createdAt         DateTime     @default(now())
+  contact           Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message           Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([contactId])
+  @@index([conversationId])
+  @@index([isLead, leadScore])
+}
