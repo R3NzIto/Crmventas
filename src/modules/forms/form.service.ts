@@ -91,6 +91,39 @@ function zodEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+async function ensurePipelineDeal(agencyId: string, contact: Contact, formName: string): Promise<void> {
+  const existingDeal = await prisma.deal.findFirst({
+    where: {
+      contactId: contact.id,
+      status: "open",
+      contact: { agencyId }
+    },
+    select: { id: true }
+  });
+  if (existingDeal) {
+    return;
+  }
+
+  const stage = await prisma.stage.findFirst({
+    where: { pipeline: { agencyId } },
+    orderBy: [{ pipeline: { createdAt: "asc" } }, { order: "asc" }],
+    select: { id: true }
+  });
+  if (!stage) {
+    return;
+  }
+
+  await prisma.deal.create({
+    data: {
+      stageId: stage.id,
+      contactId: contact.id,
+      title: `Lead de formulario: ${formName}`,
+      value: 0,
+      status: "open"
+    }
+  });
+}
+
 async function findOrCreateContact(agencyId: string, data: Record<string, unknown>): Promise<Contact> {
   const email = stringValue(data, ["email", "Email", "workEmail"]);
   const phone = stringValue(data, ["phone", "Phone", "mobile"]);
@@ -195,7 +228,7 @@ export function createFormService(engine: FormWorkflowEngine = workflowEngine) {
 
       const form = await prisma.form.findFirst({
         where: { id: formId, agencyId: agency.id },
-        select: { id: true, agencyId: true, fields: true }
+        select: { id: true, agencyId: true, name: true, fields: true }
       });
       if (!form) {
         throw new PublicFormNotFoundError();
@@ -211,6 +244,7 @@ export function createFormService(engine: FormWorkflowEngine = workflowEngine) {
           data: input.data as Prisma.InputJsonObject
         }
       });
+      await ensurePipelineDeal(agency.id, contact, form.name);
 
       await engine.handleTrigger({
         type: "form_submitted",
