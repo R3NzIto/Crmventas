@@ -33,7 +33,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push(searchParams.get("callbackUrl") ?? "/dashboard/contacts");
+    router.push(searchParams.get("callbackUrl") ?? "/dashboard");
     router.refresh();
   }
 
