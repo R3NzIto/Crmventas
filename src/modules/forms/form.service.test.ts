@@ -203,7 +203,7 @@ describe("form service", () => {
     const engine = workflowEngineMock();
     vi.mocked(prisma.agency.findUnique).mockResolvedValue(agencyFixture());
     vi.mocked(prisma.form.findFirst).mockResolvedValue(formFixture());
-    vi.mocked(prisma.contact.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.contact.findFirst).mockResolvedValueOnce(null).mockResolvedValueOnce(contactFixture());
     vi.mocked(prisma.contact.create).mockResolvedValue(contactFixture());
     vi.mocked(prisma.formSubmission.create).mockResolvedValue(submissionFixture());
     vi.mocked(prisma.deal.findFirst).mockResolvedValue(null);
@@ -238,7 +238,7 @@ describe("form service", () => {
     const engine = workflowEngineMock();
     vi.mocked(prisma.agency.findUnique).mockResolvedValue(agencyFixture());
     vi.mocked(prisma.form.findFirst).mockResolvedValue(formFixture());
-    vi.mocked(prisma.contact.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.contact.findFirst).mockResolvedValueOnce(null).mockResolvedValueOnce(contactFixture());
     vi.mocked(prisma.contact.create).mockResolvedValue(contactFixture());
     vi.mocked(prisma.formSubmission.create).mockResolvedValue(submissionFixture());
     vi.mocked(prisma.deal.findFirst).mockResolvedValue(null);

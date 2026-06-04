@@ -1,5 +1,5 @@
-import type { Contact, Conversation, LeadQualification, Message } from "@prisma/client";
-import { describe, expect, it, vi } from "vitest";
+import type { Contact, Conversation, Deal, LeadQualification, Message, Stage } from "@prisma/client";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createLeadAiService } from "@/modules/leads/lead-ai.service";
 
 vi.mock("@/lib/prisma", () => ({
@@ -12,7 +12,15 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn()
     },
     contact: {
+      findFirst: vi.fn(),
       update: vi.fn()
+    },
+    deal: {
+      findFirst: vi.fn(),
+      create: vi.fn()
+    },
+    stage: {
+      findFirst: vi.fn()
     }
   }
 }));
@@ -90,7 +98,35 @@ function qualificationFixture(overrides: Partial<LeadQualification> = {}): LeadQ
   };
 }
 
+function stageFixture(overrides: Partial<Stage> = {}): Stage {
+  return {
+    id: "stage-1",
+    pipelineId: "pipeline-1",
+    name: "Nuevo",
+    order: 0,
+    color: "#2563eb",
+    ...overrides
+  };
+}
+
+function dealFixture(overrides: Partial<Deal> = {}): Deal {
+  return {
+    id: "deal-1",
+    stageId: "stage-1",
+    contactId: "contact-1",
+    title: "Lead IA: pricing",
+    value: 0,
+    closeDate: null,
+    status: "open",
+    ...overrides
+  };
+}
+
 describe("lead ai service", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("classifies pricing language as a lead when no OpenAI key is configured", async () => {
     const originalKey = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = "";
@@ -113,6 +149,10 @@ describe("lead ai service", () => {
     vi.mocked(prisma.message.findUnique).mockResolvedValue(message as unknown as Message);
     vi.mocked(prisma.leadQualification.upsert).mockResolvedValue(qualificationFixture());
     vi.mocked(prisma.contact.update).mockResolvedValue(contact);
+    vi.mocked(prisma.contact.findFirst).mockResolvedValue(contact);
+    vi.mocked(prisma.deal.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.stage.findFirst).mockResolvedValue(stageFixture());
+    vi.mocked(prisma.deal.create).mockResolvedValue(dealFixture());
     const service = createLeadAiService();
 
     const qualification = await service.qualifyMessage("message-1");
@@ -137,6 +177,54 @@ describe("lead ai service", () => {
         intent: "pricing"
       })
     );
+    expect(prisma.deal.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          contactId: "contact-1",
+          title: "Lead IA: pricing",
+          status: "open"
+        })
+      })
+    );
+    process.env.OPENAI_API_KEY = originalKey;
+  });
+
+  it("does not create a deal or workflow for non-lead messages", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "";
+    const contact = contactFixture();
+    const conversation = { ...conversationFixture(), contact };
+    const message = { ...messageFixture({ content: "I need support with an error" }), conversation };
+    vi.mocked(prisma.message.findUnique).mockResolvedValue(message as unknown as Message);
+    vi.mocked(prisma.leadQualification.upsert).mockResolvedValue(qualificationFixture({ isLead: false, leadScore: 25, intent: "support" }));
+    vi.mocked(prisma.contact.update).mockResolvedValue(contactFixture({ tags: ["ai-reviewed", "support"] }));
+    const service = createLeadAiService();
+
+    await service.qualifyMessage("message-1");
+
+    expect(prisma.deal.create).not.toHaveBeenCalled();
+    expect(workflowEngine.handleTrigger).not.toHaveBeenCalled();
+    process.env.OPENAI_API_KEY = originalKey;
+  });
+
+  it("does not duplicate a deal when the lead contact already has an open agency deal", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "";
+    const contact = contactFixture();
+    const conversation = { ...conversationFixture(), contact };
+    const message = { ...messageFixture(), conversation };
+    vi.mocked(prisma.message.findUnique).mockResolvedValue(message as unknown as Message);
+    vi.mocked(prisma.leadQualification.upsert).mockResolvedValue(qualificationFixture());
+    vi.mocked(prisma.contact.update).mockResolvedValue(contact);
+    vi.mocked(prisma.contact.findFirst).mockResolvedValue(contact);
+    vi.mocked(prisma.deal.findFirst).mockResolvedValue(dealFixture());
+    const service = createLeadAiService();
+
+    await service.qualifyMessage("message-1");
+
+    expect(prisma.stage.findFirst).not.toHaveBeenCalled();
+    expect(prisma.deal.create).not.toHaveBeenCalled();
+    expect(workflowEngine.handleTrigger).toHaveBeenCalledWith(expect.objectContaining({ type: "lead_qualified" }));
     process.env.OPENAI_API_KEY = originalKey;
   });
 });

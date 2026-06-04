@@ -7,7 +7,7 @@ import { workflowEngine } from "@/modules/workflows/workflow.engine";
 import type { InboxChannelConfigInput, InboxConversationFilters } from "@/modules/inbox/inbox.schemas";
 
 export type InboxConversationWithMessages = Prisma.ConversationGetPayload<{
-  include: { contact: true; assignedTo: true; messages: true };
+  include: { contact: true; assignedTo: true; messages: true; leadQualifications: true };
 }>;
 
 export interface InboxProviderPort {
@@ -59,6 +59,11 @@ export function createInboxService(providers: InboxProviderPort = defaultProvide
           messages: {
             orderBy: { sentAt: "desc" },
             take: 1
+          },
+          leadQualifications: {
+            where: { isLead: true },
+            orderBy: { createdAt: "desc" },
+            take: 1
           }
         },
         orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
@@ -73,7 +78,12 @@ export function createInboxService(providers: InboxProviderPort = defaultProvide
         include: {
           contact: true,
           assignedTo: true,
-          messages: { orderBy: { sentAt: "asc" } }
+          messages: { orderBy: { sentAt: "asc" } },
+          leadQualifications: {
+            where: { isLead: true },
+            orderBy: { createdAt: "desc" },
+            take: 1
+          }
         }
       });
       if (!conversation) {

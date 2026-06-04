@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { leadQualificationResultSchema, type LeadFilters, type LeadQualificationResult } from "@/modules/leads/lead.schemas";
 import { workflowEngine } from "@/modules/workflows/workflow.engine";
+import { ensureOpenDealForLead } from "@/services/lead-deal.service";
 
 const leadResponseJsonSchema = {
   name: "lead_qualification",
@@ -160,6 +161,11 @@ export function createLeadAiService() {
       }
 
       if (result.isLead) {
+        await ensureOpenDealForLead(
+          message.conversation.agencyId,
+          message.conversation.contactId,
+          `Lead IA: ${result.intent}`
+        );
         await workflowEngine.handleTrigger({
           type: "lead_qualified",
           agencyId: message.conversation.agencyId,

@@ -24,6 +24,14 @@ interface InboxMessage {
   sentAt: string | null;
 }
 
+interface InboxLeadQualification {
+  id: string;
+  leadScore: number;
+  intent: string;
+  urgency: string;
+  recommendedAction: string;
+}
+
 interface InboxConversation {
   id: string;
   channel: Channel;
@@ -32,6 +40,7 @@ interface InboxConversation {
   lastMessageAt: string | null;
   contact: InboxContact;
   messages: InboxMessage[];
+  leadQualifications: InboxLeadQualification[];
 }
 
 const channelLabels: Record<Channel, string> = {
@@ -58,6 +67,16 @@ function ChannelIcon({ channel }: { channel: Channel }) {
     return <Phone className="h-3.5 w-3.5" />;
   }
   return <MessageCircle className="h-3.5 w-3.5" />;
+}
+
+function leadScoreClass(score: number): string {
+  if (score >= 80) {
+    return "bg-emerald-100 text-emerald-700";
+  }
+  if (score >= 60) {
+    return "bg-amber-100 text-amber-700";
+  }
+  return "bg-slate-100 text-slate-600";
 }
 
 export function InboxPage() {
@@ -196,6 +215,7 @@ export function InboxPage() {
           ) : null}
           {!listLoading && !error ? conversations.map((conversation) => {
             const lastMessage = conversation.messages[0];
+            const lead = conversation.leadQualifications[0];
             return (
               <button
                 key={conversation.id}
@@ -223,6 +243,7 @@ export function InboxPage() {
                       {conversation.unreadCount > 0 ? (
                         <span className="rounded bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">{conversation.unreadCount}</span>
                       ) : null}
+                      {lead ? <span className={cn("rounded px-1.5 py-0.5 text-xs", leadScoreClass(lead.leadScore))}>Lead {lead.leadScore}</span> : null}
                     </div>
                   </div>
                 </div>
@@ -254,6 +275,18 @@ export function InboxPage() {
                 </Button>
               </div>
             </header>
+            {selected.leadQualifications[0] ? (
+              <div className="border-b bg-emerald-50 px-4 py-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={cn("rounded px-2 py-0.5 text-xs font-medium", leadScoreClass(selected.leadQualifications[0].leadScore))}>
+                    Lead {selected.leadQualifications[0].leadScore}
+                  </span>
+                  <span className="rounded bg-background px-2 py-0.5 text-xs">{selected.leadQualifications[0].intent}</span>
+                  <span className="rounded bg-background px-2 py-0.5 text-xs">{selected.leadQualifications[0].urgency}</span>
+                </div>
+                <p className="mt-2 text-emerald-950">{selected.leadQualifications[0].recommendedAction}</p>
+              </div>
+            ) : null}
             <div className="flex-1 space-y-3 overflow-y-auto bg-muted/30 p-5">
               {selectedMessages.map((message) => (
                 <div key={message.id} className={cn("flex", message.direction === "outbound" ? "justify-end" : "justify-start")}>
