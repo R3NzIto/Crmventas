@@ -1,7 +1,7 @@
 "use client";
 
 import { DndContext, type DragEndEvent, useDraggable, useDroppable } from "@dnd-kit/core";
-import { GripVertical, Plus, RefreshCw } from "lucide-react";
+import { Edit3, GripVertical, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -61,15 +61,70 @@ function contactName(contact: PipelineContact | ContactOption): string {
   return `${contact.firstName} ${contact.lastName}`.trim() || contact.email || "Unnamed contact";
 }
 
-function Deal({ deal }: { deal: PipelineDeal }) {
+function dealOrigin(deal: PipelineDeal): string {
+  if (deal.title.startsWith("Lead de formulario:")) {
+    return "Formulario";
+  }
+  if (deal.title.startsWith("Lead IA:")) {
+    return "IA";
+  }
+  return "Manual";
+}
+
+function originClass(origin: string): string {
+  if (origin === "Formulario") {
+    return "bg-blue-100 text-blue-700";
+  }
+  if (origin === "IA") {
+    return "bg-emerald-100 text-emerald-700";
+  }
+  return "bg-slate-100 text-slate-600";
+}
+
+function statusLabel(status: PipelineDeal["status"]): string {
+  if (status === "won") {
+    return "Ganado";
+  }
+  if (status === "lost") {
+    return "Perdido";
+  }
+  return "Abierto";
+}
+
+function Deal({ deal, onEdit }: { deal: PipelineDeal; onEdit: (deal: PipelineDeal) => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: deal.id });
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+  const origin = dealOrigin(deal);
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-md border bg-background p-3 shadow-sm" {...listeners} {...attributes}>
+    <div ref={setNodeRef} style={style} className="rounded-md border bg-background p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium">{deal.title}</p>
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{deal.title}</p>
+          <div className="mt-2 flex flex-wrap gap-1">
+            <span className={cn("rounded px-1.5 py-0.5 text-xs", originClass(origin))}>{origin}</span>
+            <span className="rounded bg-muted px-1.5 py-0.5 text-xs">{statusLabel(deal.status)}</span>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => onEdit(deal)}
+            aria-label={`Editar oportunidad ${deal.title}`}
+          >
+            <Edit3 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className="cursor-grab rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={`Mover oportunidad ${deal.title}`}
+            {...listeners}
+            {...attributes}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </div>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{contactName(deal.contact)}</p>
       <p className="mt-3 text-sm font-semibold">${deal.value.toLocaleString()}</p>
@@ -77,7 +132,7 @@ function Deal({ deal }: { deal: PipelineDeal }) {
   );
 }
 
-function Stage({ stage }: { stage: PipelineStage }) {
+function Stage({ stage, onEditDeal }: { stage: PipelineStage; onEditDeal: (deal: PipelineDeal) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   return (
@@ -91,7 +146,7 @@ function Stage({ stage }: { stage: PipelineStage }) {
       </div>
       <div className="space-y-3">
         {stage.deals.map((deal) => (
-          <Deal key={deal.id} deal={deal} />
+          <Deal key={deal.id} deal={deal} onEdit={onEditDeal} />
         ))}
       </div>
     </div>
@@ -107,6 +162,7 @@ export function PipelineBoard() {
   const [error, setError] = useState<string | null>(null);
   const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
   const [dealDialogOpen, setDealDialogOpen] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<PipelineDeal | null>(null);
 
   const selectedPipeline = useMemo(
     () => pipelines.find((pipeline) => pipeline.id === selectedPipelineId) ?? pipelines[0],
@@ -240,6 +296,49 @@ export function PipelineBoard() {
     await loadPipelines();
   }
 
+  async function updateDeal(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!editingDeal) {
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const title = String(formData.get("title") ?? "").trim();
+    const value = Number(formData.get("value") ?? 0);
+    const status = String(formData.get("status") ?? "open") as PipelineDeal["status"];
+    if (!title || !["open", "won", "lost"].includes(status)) {
+      return;
+    }
+
+    setSaving(true);
+    const response = await fetch(`/api/deals/${editingDeal.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, value, status })
+    });
+    setSaving(false);
+    if (!response.ok) {
+      setError("No se pudo actualizar la oportunidad");
+      return;
+    }
+    setEditingDeal(null);
+    await loadPipelines();
+  }
+
+  async function deleteDeal(): Promise<void> {
+    if (!editingDeal) {
+      return;
+    }
+    setSaving(true);
+    const response = await fetch(`/api/deals/${editingDeal.id}`, { method: "DELETE" });
+    setSaving(false);
+    if (!response.ok) {
+      setError("No se pudo eliminar la oportunidad");
+      return;
+    }
+    setEditingDeal(null);
+    await loadPipelines();
+  }
+
   return (
     <section className="space-y-5 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -333,6 +432,50 @@ export function PipelineBoard() {
               </form>
             </DialogContent>
           </Dialog>
+          <Dialog open={Boolean(editingDeal)} onOpenChange={(open) => !open && setEditingDeal(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar oportunidad</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Actualiza el valor comercial y el estado de seguimiento.
+                </DialogDescription>
+              </DialogHeader>
+              {editingDeal ? (
+                <form onSubmit={(event) => void updateDeal(event)} className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="editDealTitle">Titulo</Label>
+                    <Input id="editDealTitle" name="title" defaultValue={editingDeal.title} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editDealValue">Valor</Label>
+                    <Input id="editDealValue" name="value" type="number" min="0" defaultValue={editingDeal.value} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editDealStatus">Estado</Label>
+                    <select
+                      id="editDealStatus"
+                      name="status"
+                      defaultValue={editingDeal.status}
+                      className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                    >
+                      <option value="open">Abierto</option>
+                      <option value="won">Ganado</option>
+                      <option value="lost">Perdido</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 pt-2">
+                    <Button type="button" variant="outline" onClick={() => void deleteDeal()} disabled={saving}>
+                      <Trash2 className="h-4 w-4" />
+                      Eliminar
+                    </Button>
+                    <Button type="submit" disabled={saving}>
+                      {saving ? "Guardando..." : "Guardar cambios"}
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" onClick={() => void loadPipelines()} disabled={loading}>
             <RefreshCw className="h-4 w-4" />
           Actualizar
@@ -352,7 +495,7 @@ export function PipelineBoard() {
         <DndContext onDragEnd={(event) => void handleDragEnd(event)}>
           <div className="grid min-w-[56rem] gap-4 overflow-x-auto md:grid-cols-2 xl:grid-cols-4">
             {selectedPipeline.stages.map((stage) => (
-              <Stage key={stage.id} stage={stage} />
+              <Stage key={stage.id} stage={stage} onEditDeal={setEditingDeal} />
             ))}
           </div>
         </DndContext>

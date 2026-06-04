@@ -53,4 +53,36 @@ describe("pipeline service", () => {
       PipelineResourceNotFoundError
     );
   });
+
+  it("updates a deal inside the same agency", async () => {
+    const repository = repositoryMock();
+    vi.mocked(repository.updateDeal).mockResolvedValue(dealFixture({ title: "Updated package", value: 3200 }));
+    const service = createPipelineService(repository);
+
+    const updated = await service.updateDeal("agency-1", "deal-1", { title: "Updated package", value: 3200 });
+
+    expect(updated.title).toBe("Updated package");
+    expect(repository.updateDeal).toHaveBeenCalledWith("agency-1", "deal-1", { title: "Updated package", value: 3200 });
+  });
+
+  it("rejects deal updates outside the agency", async () => {
+    const repository = repositoryMock();
+    vi.mocked(repository.updateDeal).mockResolvedValue(null);
+    const service = createPipelineService(repository);
+
+    await expect(service.updateDeal("agency-1", "deal-foreign", { title: "Blocked" })).rejects.toBeInstanceOf(
+      PipelineResourceNotFoundError
+    );
+  });
+
+  it("deletes a deal inside the same agency", async () => {
+    const repository = repositoryMock();
+    vi.mocked(repository.deleteDeal).mockResolvedValue(dealFixture());
+    const service = createPipelineService(repository);
+
+    const deleted = await service.deleteDeal("agency-1", "deal-1");
+
+    expect(deleted.id).toBe("deal-1");
+    expect(repository.deleteDeal).toHaveBeenCalledWith("agency-1", "deal-1");
+  });
 });
