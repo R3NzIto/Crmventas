@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Mail, MessageCircle, Phone, Send } from "lucide-react";
+import { ArrowLeft, CircleDollarSign, Flame, Kanban, Mail, MessageCircle, Moon, Phone, Send } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,22 @@ interface InboxContact {
   lastName: string;
   email: string | null;
   phone: string | null;
+  tags: string[];
+  deals: InboxDeal[];
+}
+
+interface InboxDeal {
+  id: string;
+  title: string;
+  value: number;
+  status: "open" | "won" | "lost";
+  stage: {
+    name: string;
+    pipeline: {
+      id: string;
+      name: string;
+    };
+  };
 }
 
 interface InboxMessage {
@@ -79,6 +96,26 @@ function leadScoreClass(score: number): string {
   return "bg-slate-100 text-slate-600";
 }
 
+function statusClass(status: Status): string {
+  if (status === "OPEN") {
+    return "bg-emerald-100 text-emerald-700";
+  }
+  if (status === "SNOOZED") {
+    return "bg-amber-100 text-amber-700";
+  }
+  return "bg-slate-100 text-slate-600";
+}
+
+function statusLabel(status: Status): string {
+  if (status === "OPEN") {
+    return "Pendiente";
+  }
+  if (status === "SNOOZED") {
+    return "Pospuesta";
+  }
+  return "Cerrada";
+}
+
 export function InboxPage() {
   const [conversations, setConversations] = useState<InboxConversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -92,6 +129,7 @@ export function InboxPage() {
   const [error, setError] = useState<string | null>(null);
 
   const selectedMessages = useMemo(() => selected?.messages ?? [], [selected]);
+  const selectedDeal = selected?.contact.deals[0] ?? null;
 
   async function loadConversations() {
     setListLoading(true);
@@ -163,16 +201,21 @@ export function InboxPage() {
     }
   }
 
-  async function patchConversation(action: "mark_as_read" | "close" | "reopen") {
+  async function patchConversation(action: "mark_as_read" | "close" | "reopen" | "snooze" | "create_deal" | "mark_hot_lead") {
     if (!selected) {
       return;
     }
-    await fetch(`/api/conversations/${selected.id}`, {
+    const response = await fetch(`/api/conversations/${selected.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action })
     });
-    await loadSelected(selected.id);
+    if (response.ok && (action === "create_deal" || action === "mark_hot_lead")) {
+      const payload = (await response.json()) as { data: InboxConversation };
+      setSelected(payload.data);
+    } else {
+      await loadSelected(selected.id);
+    }
     await loadConversations();
   }
 
@@ -244,6 +287,9 @@ export function InboxPage() {
                         <span className="rounded bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">{conversation.unreadCount}</span>
                       ) : null}
                       {lead ? <span className={cn("rounded px-1.5 py-0.5 text-xs", leadScoreClass(lead.leadScore))}>Lead {lead.leadScore}</span> : null}
+                      {conversation.contact.deals[0] ? (
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">Deal</span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -263,12 +309,23 @@ export function InboxPage() {
                 </Button>
                 <div>
                   <h2 className="font-semibold">{contactName(selected.contact)}</h2>
-                  <p className="text-sm text-muted-foreground">{channelLabels[selected.channel]}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{channelLabels[selected.channel]}</span>
+                    <span className={cn("rounded px-2 py-0.5 text-xs", statusClass(selected.status))}>{statusLabel(selected.status)}</span>
+                    {selected.unreadCount > 0 ? <span className="rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground">Sin leer</span> : null}
+                    {selected.contact.tags.includes("hot-lead") ? (
+                      <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">Hot lead</span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => void patchConversation("mark_as_read")}>
-                  Marcar leida
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline" onClick={() => void patchConversation("mark_as_read")}>
+                  Marcar leída
+                </Button>
+                <Button variant="outline" onClick={() => void patchConversation("snooze")}>
+                  <Moon className="h-4 w-4" />
+                  Posponer
                 </Button>
                 <Button variant="outline" onClick={() => void patchConversation(selected.status === "OPEN" ? "close" : "reopen")}>
                   {selected.status === "OPEN" ? "Cerrar" : "Reabrir"}
@@ -287,6 +344,39 @@ export function InboxPage() {
                 <p className="mt-2 text-emerald-950">{selected.leadQualifications[0].recommendedAction}</p>
               </div>
             ) : null}
+            <div className="grid gap-3 border-b bg-background p-4 lg:grid-cols-[1fr_auto]">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-medium">{selectedDeal ? selectedDeal.title : "Sin oportunidad abierta"}</p>
+                  {selectedDeal ? <span className="rounded bg-muted px-2 py-0.5 text-xs">{selectedDeal.stage.name}</span> : null}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {selectedDeal
+                    ? `${selectedDeal.stage.pipeline.name} · $${selectedDeal.value.toLocaleString()}`
+                    : "Crea una oportunidad para hacer seguimiento desde el pipeline."}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedDeal ? (
+                  <Button asChild variant="outline">
+                    <Link href="/dashboard/pipelines">
+                      <Kanban className="h-4 w-4" />
+                      Ver pipeline
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => void patchConversation("create_deal")}>
+                    <CircleDollarSign className="h-4 w-4" />
+                    Crear deal
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => void patchConversation("mark_hot_lead")}>
+                  <Flame className="h-4 w-4" />
+                  Hot lead
+                </Button>
+              </div>
+            </div>
             <div className="flex-1 space-y-3 overflow-y-auto bg-muted/30 p-5">
               {selectedMessages.map((message) => (
                 <div key={message.id} className={cn("flex", message.direction === "outbound" ? "justify-end" : "justify-start")}>

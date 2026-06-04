@@ -15,7 +15,7 @@ export const sendMessageSchema = z.object({
 });
 
 export const patchConversationSchema = z.object({
-  action: z.enum(["mark_as_read", "close", "reopen", "assign"]),
+  action: z.enum(["mark_as_read", "close", "reopen", "snooze", "assign", "create_deal", "mark_hot_lead"]),
   assignedUserId: z.string().optional()
 });
 

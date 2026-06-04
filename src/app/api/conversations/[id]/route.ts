@@ -37,6 +37,15 @@ export async function PATCH(request: NextRequest, context: ConversationRouteCont
     if (input.action === "reopen") {
       return NextResponse.json({ data: await inboxService.reopenConversation(context.params.id, agencyContext.agencyId) });
     }
+    if (input.action === "snooze") {
+      return NextResponse.json({ data: await inboxService.snoozeConversation(context.params.id, agencyContext.agencyId) });
+    }
+    if (input.action === "create_deal") {
+      return NextResponse.json({ data: await inboxService.createDealFromConversation(context.params.id, agencyContext.agencyId) });
+    }
+    if (input.action === "mark_hot_lead") {
+      return NextResponse.json({ data: await inboxService.markHotLead(context.params.id, agencyContext.agencyId) });
+    }
     if (!input.assignedUserId) {
       return NextResponse.json({ error: "assignedUserId is required" }, { status: 400 });
     }

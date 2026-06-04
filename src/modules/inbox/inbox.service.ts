@@ -5,9 +5,33 @@ import { sendEmail } from "@/lib/providers/sendgrid";
 import { sendSMS, sendWhatsApp } from "@/lib/providers/twilio";
 import { workflowEngine } from "@/modules/workflows/workflow.engine";
 import type { InboxChannelConfigInput, InboxConversationFilters } from "@/modules/inbox/inbox.schemas";
+import { ensureOpenDealForLead } from "@/services/lead-deal.service";
 
 export type InboxConversationWithMessages = Prisma.ConversationGetPayload<{
-  include: { contact: true; assignedTo: true; messages: true; leadQualifications: true };
+  include: {
+    contact: {
+      include: {
+        deals: {
+          include: {
+            stage: {
+              include: {
+                pipeline: {
+                  select: {
+                    id: true;
+                    name: true;
+                    agencyId: true;
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+    assignedTo: true;
+    messages: true;
+    leadQualifications: true;
+  };
 }>;
 
 export interface InboxProviderPort {
@@ -48,13 +72,34 @@ function buildConversationWhere(agencyId: string, filters: InboxConversationFilt
   };
 }
 
+const contactInclude = {
+  deals: {
+    where: { status: "open" },
+    include: {
+      stage: {
+        include: {
+          pipeline: {
+            select: {
+              id: true,
+              name: true,
+              agencyId: true
+            }
+          }
+        }
+      }
+    }
+  }
+} satisfies Prisma.ContactInclude;
+
 export function createInboxService(providers: InboxProviderPort = defaultProviders) {
   return {
     async getConversations(agencyId: string, filters: InboxConversationFilters): Promise<InboxConversationWithMessages[]> {
       return prisma.conversation.findMany({
         where: buildConversationWhere(agencyId, filters),
         include: {
-          contact: true,
+          contact: {
+            include: contactInclude
+          },
           assignedTo: true,
           messages: {
             orderBy: { sentAt: "desc" },
@@ -76,7 +121,9 @@ export function createInboxService(providers: InboxProviderPort = defaultProvide
       const conversation = await prisma.conversation.findFirst({
         where: { id, agencyId },
         include: {
-          contact: true,
+          contact: {
+            include: contactInclude
+          },
           assignedTo: true,
           messages: { orderBy: { sentAt: "asc" } },
           leadQualifications: {
@@ -160,6 +207,10 @@ export function createInboxService(providers: InboxProviderPort = defaultProvide
       return this.updateStatus(id, agencyId, "OPEN");
     },
 
+    async snoozeConversation(id: string, agencyId: string): Promise<Conversation> {
+      return this.updateStatus(id, agencyId, "SNOOZED");
+    },
+
     async updateStatus(id: string, agencyId: string, status: "OPEN" | "CLOSED" | "SNOOZED"): Promise<Conversation> {
       const conversation = await prisma.conversation.findFirst({ where: { id, agencyId }, select: { id: true } });
       if (!conversation) {
@@ -175,6 +226,59 @@ export function createInboxService(providers: InboxProviderPort = defaultProvide
         throw new InboxConversationNotFoundError();
       }
       return prisma.conversation.update({ where: { id }, data: { assignedToId: userId } });
+    },
+
+    async createDealFromConversation(id: string, agencyId: string): Promise<InboxConversationWithMessages> {
+      const conversation = await prisma.conversation.findFirst({
+        where: { id, agencyId },
+        select: {
+          id: true,
+          contactId: true,
+          contact: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true
+            }
+          }
+        }
+      });
+      if (!conversation) {
+        throw new InboxConversationNotFoundError();
+      }
+      const name =
+        `${conversation.contact.firstName} ${conversation.contact.lastName}`.trim() ||
+        conversation.contact.email ||
+        conversation.contact.phone ||
+        "Contacto";
+      await ensureOpenDealForLead(agencyId, conversation.contactId, `Lead manual: ${name}`);
+      return this.getConversationById(id, agencyId);
+    },
+
+    async markHotLead(id: string, agencyId: string): Promise<InboxConversationWithMessages> {
+      const conversation = await prisma.conversation.findFirst({
+        where: { id, agencyId },
+        select: {
+          contactId: true,
+          contact: {
+            select: {
+              tags: true
+            }
+          }
+        }
+      });
+      if (!conversation) {
+        throw new InboxConversationNotFoundError();
+      }
+      const nextTags = Array.from(new Set([...conversation.contact.tags, "hot-lead"]));
+      if (nextTags.length !== conversation.contact.tags.length) {
+        await prisma.contact.update({
+          where: { id: conversation.contactId },
+          data: { tags: nextTags }
+        });
+      }
+      return this.getConversationById(id, agencyId);
     },
 
     async upsertInboundMessage(input: {

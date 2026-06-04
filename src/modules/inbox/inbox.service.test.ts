@@ -18,7 +18,15 @@ vi.mock("@/lib/prisma", () => ({
     },
     contact: {
       findFirst: vi.fn(),
+      update: vi.fn(),
       create: vi.fn()
+    },
+    deal: {
+      findFirst: vi.fn(),
+      create: vi.fn()
+    },
+    stage: {
+      findFirst: vi.fn()
     },
     agencyChannelConfig: {
       upsert: vi.fn()
@@ -95,7 +103,16 @@ describe("inbox service", () => {
 
     expect(prisma.conversation.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ agencyId: "agency-1", channel: "sms", status: "OPEN" })
+        where: expect.objectContaining({ agencyId: "agency-1", channel: "sms", status: "OPEN" }),
+        include: expect.objectContaining({
+          contact: expect.objectContaining({
+            include: expect.objectContaining({
+              deals: expect.objectContaining({
+                where: { status: "open" }
+              })
+            })
+          })
+        })
       })
     );
   });
@@ -135,5 +152,68 @@ describe("inbox service", () => {
     expect(prisma.message.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { conversationId: "conversation-1", direction: "inbound", readAt: null } })
     );
+  });
+
+  it("snoozes a conversation inside the agency scope", async () => {
+    vi.mocked(prisma.conversation.findFirst).mockResolvedValue(conversationFixture());
+    vi.mocked(prisma.conversation.update).mockResolvedValue(conversationFixture({ status: "SNOOZED" }));
+    const service = createInboxService(providersMock());
+
+    const conversation = await service.snoozeConversation("conversation-1", "agency-1");
+
+    expect(conversation.status).toBe("SNOOZED");
+    expect(prisma.conversation.findFirst).toHaveBeenCalledWith({ where: { id: "conversation-1", agencyId: "agency-1" }, select: { id: true } });
+    expect(prisma.conversation.update).toHaveBeenCalledWith({ where: { id: "conversation-1" }, data: { status: "SNOOZED" } });
+  });
+
+  it("creates a deal from an inbox conversation scoped to the agency", async () => {
+    vi.mocked(prisma.conversation.findFirst)
+      .mockResolvedValueOnce({ id: "conversation-1", contactId: "contact-1", contact: contactFixture() } as unknown as Conversation)
+      .mockResolvedValueOnce({ ...conversationFixture(), contact: { ...contactFixture(), deals: [] }, assignedTo: null, messages: [], leadQualifications: [] } as unknown as Conversation);
+    vi.mocked(prisma.contact.findFirst).mockResolvedValue(contactFixture());
+    vi.mocked(prisma.deal.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.stage.findFirst).mockResolvedValue({ id: "stage-1", pipelineId: "pipeline-1", name: "Nuevo", order: 0, color: null });
+    vi.mocked(prisma.deal.create).mockResolvedValue({
+      id: "deal-1",
+      stageId: "stage-1",
+      contactId: "contact-1",
+      title: "Lead manual: Ada Lovelace",
+      value: 0,
+      closeDate: null,
+      status: "open"
+    });
+    const service = createInboxService(providersMock());
+
+    await service.createDealFromConversation("conversation-1", "agency-1");
+
+    expect(prisma.contact.findFirst).toHaveBeenCalledWith({ where: { id: "contact-1", agencyId: "agency-1" }, select: { id: true } });
+    expect(prisma.deal.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          contactId: "contact-1",
+          title: "Lead manual: Ada Lovelace"
+        })
+      })
+    );
+  });
+
+  it("marks a conversation contact as hot lead without duplicating tags", async () => {
+    vi.mocked(prisma.conversation.findFirst)
+      .mockResolvedValueOnce({ contactId: "contact-1", contact: { tags: ["ai-lead"] } } as unknown as Conversation)
+      .mockResolvedValueOnce({ ...conversationFixture(), contact: { ...contactFixture({ tags: ["ai-lead", "hot-lead"] }), deals: [] }, assignedTo: null, messages: [], leadQualifications: [] } as unknown as Conversation);
+    vi.mocked(prisma.contact.update).mockResolvedValue(contactFixture({ tags: ["ai-lead", "hot-lead"] }));
+    const service = createInboxService(providersMock());
+
+    await service.markHotLead("conversation-1", "agency-1");
+
+    expect(prisma.conversation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "conversation-1", agencyId: "agency-1" }
+      })
+    );
+    expect(prisma.contact.update).toHaveBeenCalledWith({
+      where: { id: "contact-1" },
+      data: { tags: ["ai-lead", "hot-lead"] }
+    });
   });
 });
