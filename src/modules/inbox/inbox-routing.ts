@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
 
+function normalizePhoneNumber(value: string): string {
+  return value.trim().replace(/^whatsapp:/i, "");
+}
+
 export async function findAgencyIdByInboundEmail(to: string): Promise<string | null> {
-  const domain = to.split("@")[1]?.toLowerCase();
+  const domain = to.trim().split("@")[1]?.toLowerCase();
   if (!domain) {
     return null;
   }
@@ -25,12 +29,11 @@ export async function findAgencyIdByInboundEmail(to: string): Promise<string | n
 }
 
 export async function findAgencyIdByPhoneNumber(to: string, channel: "sms" | "whatsapp"): Promise<string | null> {
-  const normalized = to.replace("whatsapp:", "");
-  const path = channel === "sms" ? ["phoneNumber"] : ["phoneNumber"];
+  const normalized = normalizePhoneNumber(to);
   const config = await prisma.agencyChannelConfig.findFirst({
     where: {
       [channel === "sms" ? "smsConfig" : "whatsappConfig"]: {
-        path,
+        path: ["phoneNumber"],
         equals: normalized
       }
     },
@@ -40,7 +43,7 @@ export async function findAgencyIdByPhoneNumber(to: string, channel: "sms" | "wh
     return config.agencyId;
   }
   const fallbackNumber = channel === "sms" ? process.env.TWILIO_PHONE_NUMBER : process.env.TWILIO_WHATSAPP_NUMBER;
-  if (fallbackNumber && fallbackNumber.replace("whatsapp:", "") === normalized) {
+  if (fallbackNumber && normalizePhoneNumber(fallbackNumber) === normalized) {
     const agency = await prisma.agency.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } });
     return agency?.id ?? null;
   }

@@ -1,7 +1,7 @@
 "use client";
 
-import { RefreshCw, Search, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Flame, RefreshCw, Search, Send, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -57,7 +57,7 @@ export default function LeadsRoute() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadLeads(): Promise<void> {
+  const loadLeads = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     const params = new URLSearchParams({ minScore, isLead: "true" });
@@ -79,38 +79,39 @@ export default function LeadsRoute() {
     const payload = (await response.json()) as { data: LeadQualification[] };
     setLeads(payload.data);
     setLoading(false);
-  }
+  }, [intent, minScore, search, urgency]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       void loadLeads();
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [search, minScore, intent, urgency]);
+  }, [loadLeads]);
 
   return (
-    <section className="space-y-5 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className="flex min-h-[calc(100vh-64px)] flex-col gap-stack-lg p-container-padding">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <Sparkles className="h-5 w-5" />
-            Leads IA
+          <p className="text-label-sm uppercase text-primary">Modulo de inteligencia</p>
+          <h1 className="flex items-center gap-2 text-display-lg text-on-background">
+            Leads calificados
+            <Sparkles className="h-5 w-5 text-primary" />
           </h1>
-          <p className="text-sm text-muted-foreground">Mensajes clasificados como oportunidades comerciales.</p>
+          <p className="max-w-2xl text-body-md text-secondary">Mensajes clasificados como oportunidades comerciales por actividad reciente.</p>
         </div>
         <Button variant="outline" onClick={() => void loadLeads()} disabled={loading}>
           <RefreshCw className="h-4 w-4" />
-          Actualizar
+          Recalcular
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative w-80 max-w-full">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar resumen, contacto o mensaje" />
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-outline-variant bg-surface-container-lowest p-stack-sm shadow-sm">
+        <div className="relative min-w-64 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+          <Input className="border-transparent bg-transparent pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar empresa, contacto o mensaje" />
         </div>
-        <Input className="w-32" value={minScore} onChange={(event) => setMinScore(event.target.value)} type="number" min="0" max="100" />
-        <select value={intent} onChange={(event) => setIntent(event.target.value)} className="h-9 rounded-md border bg-background px-3 text-sm">
+        <Input className="w-28" value={minScore} onChange={(event) => setMinScore(event.target.value)} type="number" min="0" max="100" />
+        <select value={intent} onChange={(event) => setIntent(event.target.value)} className="h-9 rounded border border-outline-variant bg-surface px-3 text-body-sm text-on-surface">
           <option value="">Todos los intereses</option>
           <option value="pricing">Precio</option>
           <option value="demo">Demo</option>
@@ -120,7 +121,7 @@ export default function LeadsRoute() {
           <option value="spam">Spam</option>
           <option value="other">Otro</option>
         </select>
-        <select value={urgency} onChange={(event) => setUrgency(event.target.value)} className="h-9 rounded-md border bg-background px-3 text-sm">
+        <select value={urgency} onChange={(event) => setUrgency(event.target.value)} className="h-9 rounded border border-outline-variant bg-surface px-3 text-body-sm text-on-surface">
           <option value="">Todas las urgencias</option>
           <option value="high">Alta</option>
           <option value="medium">Media</option>
@@ -128,42 +129,59 @@ export default function LeadsRoute() {
         </select>
       </div>
 
-      {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+      {error ? <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-body-sm text-red-700">{error}</div> : null}
 
-      <div className="rounded-lg border">
+      <div className="flex flex-col gap-unit">
         {loading ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">Cargando leads IA...</p>
+          <p className="rounded-lg border border-outline-variant bg-surface-container-lowest p-8 text-center text-body-sm text-secondary">Cargando leads IA...</p>
         ) : leads.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">No hay leads calificados para estos filtros.</p>
+          <p className="rounded-lg border border-outline-variant bg-surface-container-lowest p-8 text-center text-body-sm text-secondary">No hay leads calificados para estos filtros.</p>
         ) : (
-          <div className="divide-y">
-            {leads.map((lead) => (
-              <article key={lead.id} className="grid gap-4 p-4 lg:grid-cols-[1fr_14rem]">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-semibold">{contactName(lead)}</h2>
-                    <span className="rounded bg-muted px-2 py-0.5 text-xs">{lead.conversation.channel}</span>
-                    <span className={`rounded px-2 py-0.5 text-xs ${scoreClass(lead.leadScore)}`}>Puntaje {lead.leadScore}</span>
-                    <span className="rounded bg-muted px-2 py-0.5 text-xs">{lead.intent}</span>
-                    <span className="rounded bg-muted px-2 py-0.5 text-xs">{lead.urgency}</span>
-                  </div>
-                  <p className="text-sm">{lead.summary}</p>
-                  <p className="text-sm text-muted-foreground">{lead.recommendedAction}</p>
-                  <blockquote className="rounded-md bg-muted p-3 text-sm text-muted-foreground">{lead.message.content}</blockquote>
+          leads.map((lead) => (
+            <article key={lead.id} className="grid gap-4 rounded-lg border border-outline-variant bg-surface-container-lowest p-stack-md shadow-sm transition-colors hover:bg-surface-bright xl:grid-cols-[8rem_15rem_1fr_17rem]">
+              <div className="flex items-center justify-center border-b border-outline-variant pb-4 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-stack-md">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-primary-fixed bg-surface text-headline-sm font-semibold text-primary">
+                  {lead.leadScore}
                 </div>
-                <div className="space-y-2 text-sm">
-                  <p className="text-xs text-muted-foreground">{new Date(lead.createdAt).toLocaleString()}</p>
+              </div>
+              <div className="space-y-1 xl:border-r xl:border-outline-variant xl:pr-stack-md">
+                <h2 className="text-headline-sm text-on-surface">{contactName(lead)}</h2>
+                <p className="text-body-sm text-secondary">{lead.contact.email ?? lead.contact.phone ?? "Sin dato de contacto"}</p>
+                <p className="text-label-sm text-secondary">{new Date(lead.createdAt).toLocaleString()}</p>
+              </div>
+              <div className="space-y-2 xl:border-r xl:border-outline-variant xl:pr-stack-md">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-label-sm ${scoreClass(lead.leadScore)}`}>
+                      {lead.leadScore >= 80 ? <Flame className="h-3 w-3" /> : null}
+                      Score {lead.leadScore}
+                    </span>
+                    <span className="rounded bg-surface-container px-2 py-0.5 text-label-sm text-secondary">{lead.conversation.channel}</span>
+                    <span className="rounded bg-surface-container px-2 py-0.5 text-label-sm text-secondary">{lead.intent}</span>
+                    <span className="rounded bg-surface-container px-2 py-0.5 text-label-sm text-secondary">{lead.urgency}</span>
+                  </div>
+                  <p className="text-body-sm text-on-surface">{lead.summary}</p>
+                  <blockquote className="rounded bg-surface-container-low p-3 text-body-sm text-secondary">{lead.message.content}</blockquote>
+                </div>
+                <div className="flex flex-col justify-center rounded bg-surface-container-low p-stack-md">
+                  <p className="mb-2 flex items-center gap-1 text-label-sm uppercase text-primary">
+                    <Sparkles className="h-4 w-4" />
+                    Proximo paso
+                  </p>
+                  <p className="mb-3 text-body-sm font-semibold text-on-surface">{lead.recommendedAction}</p>
                   <div className="flex flex-wrap gap-1">
                     {lead.suggestedTags.map((tag) => (
-                      <span key={tag} className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                      <span key={tag} className="rounded bg-surface-container px-2 py-0.5 text-label-sm text-secondary">
                         {tag}
                       </span>
                     ))}
                   </div>
+                  <Button className="mt-3 w-full">
+                    <Send className="h-4 w-4" />
+                    Contactar
+                  </Button>
                 </div>
               </article>
-            ))}
-          </div>
+          ))
         )}
       </div>
     </section>

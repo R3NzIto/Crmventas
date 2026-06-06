@@ -70,10 +70,10 @@ export async function processWorkflowExecution(data: WorkflowExecutionJob): Prom
       }
 
       if (rawStep.type === "add_tag" && rawStep.tag) {
-        await workflowRepository.addTag(data.contactId, rawStep.tag);
+        await workflowRepository.addTag(data.agencyId, data.contactId, rawStep.tag);
       }
       if (rawStep.type === "move_pipeline_stage" && rawStep.stageId) {
-        await workflowRepository.moveOpenDeal(data.contactId, rawStep.stageId);
+        await workflowRepository.moveOpenDeal(data.agencyId, data.contactId, rawStep.stageId);
       }
       if (rawStep.type === "wait_delay" && rawStep.delayMs) {
         await wait(rawStep.delayMs);

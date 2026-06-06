@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAgencyContext, parseRouteId } from "@/lib/api";
+import { ApiError, apiErrorResponse, getAgencyContext, parseRouteId } from "@/lib/api";
 import { updateContactSchema } from "@/modules/crm/contact.schemas";
 import { contactService, CrmContactNotFoundError } from "@/modules/crm/contact.service";
 
@@ -16,8 +16,10 @@ export async function GET(request: NextRequest, context: ContactRouteContext) {
     const contact = await contactService.getContactById(agencyContext.agencyId, parseRouteId(context.params));
     return NextResponse.json({ data: contact });
   } catch (error) {
-    const status = error instanceof CrmContactNotFoundError ? 404 : 500;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status });
+    if (error instanceof CrmContactNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error);
   }
 }
 
@@ -31,8 +33,10 @@ export async function PATCH(request: NextRequest, context: ContactRouteContext) 
     const contact = await contactService.updateContact(agencyContext.agencyId, parseRouteId(context.params), input);
     return NextResponse.json({ data: contact });
   } catch (error) {
-    const status = error instanceof CrmContactNotFoundError ? 404 : 400;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status });
+    if (error instanceof CrmContactNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error, "Bad request");
   }
 }
 
@@ -45,7 +49,9 @@ export async function DELETE(request: NextRequest, context: ContactRouteContext)
     const contact = await contactService.deleteContact(agencyContext.agencyId, parseRouteId(context.params));
     return NextResponse.json({ data: contact });
   } catch (error) {
-    const status = error instanceof CrmContactNotFoundError ? 404 : 500;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status });
+    if (error instanceof CrmContactNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error);
   }
 }

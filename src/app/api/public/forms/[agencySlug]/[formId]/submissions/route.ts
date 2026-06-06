@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { ApiError, apiErrorResponse } from "@/lib/api";
 import { publicFormSubmissionSchema } from "@/modules/forms/form.schemas";
 import { FormSubmissionValidationError, PublicFormNotFoundError, formService } from "@/modules/forms/form.service";
 
@@ -15,7 +16,12 @@ export async function POST(request: NextRequest, context: PublicFormSubmissionRo
     const submission = await formService.submitPublicForm(context.params.agencySlug, context.params.formId, input);
     return NextResponse.json({ data: submission }, { status: 201 });
   } catch (error) {
-    const status = error instanceof PublicFormNotFoundError ? 404 : error instanceof FormSubmissionValidationError ? 400 : 400;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Solicitud invalida" }, { status });
+    if (error instanceof PublicFormNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    if (error instanceof FormSubmissionValidationError) {
+      return apiErrorResponse(new ApiError(error.message, 400));
+    }
+    return apiErrorResponse(error, "Bad request");
   }
 }

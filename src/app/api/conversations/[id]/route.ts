@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAgencyContext } from "@/lib/api";
+import { ApiError, apiErrorResponse, getAgencyContext } from "@/lib/api";
 import { patchConversationSchema } from "@/modules/inbox/inbox.schemas";
 import { inboxService, InboxConversationNotFoundError } from "@/modules/inbox/inbox.service";
 
@@ -16,8 +16,10 @@ export async function GET(request: NextRequest, context: ConversationRouteContex
     const conversation = await inboxService.getConversationById(context.params.id, agencyContext.agencyId);
     return NextResponse.json({ data: conversation });
   } catch (error) {
-    const status = error instanceof InboxConversationNotFoundError ? 404 : 500;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status });
+    if (error instanceof InboxConversationNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error);
   }
 }
 
@@ -51,7 +53,9 @@ export async function PATCH(request: NextRequest, context: ConversationRouteCont
     }
     return NextResponse.json({ data: await inboxService.assignConversation(context.params.id, input.assignedUserId, agencyContext.agencyId) });
   } catch (error) {
-    const status = error instanceof InboxConversationNotFoundError ? 404 : 400;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status });
+    if (error instanceof InboxConversationNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error, "Bad request");
   }
 }

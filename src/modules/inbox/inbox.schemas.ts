@@ -1,5 +1,29 @@
 import { z } from "zod";
 
+export const inboundSmsPayloadSchema = z.object({
+  type: z.literal("sms"),
+  from: z.string().trim().min(1),
+  to: z.string().trim().min(1),
+  body: z.string().trim().min(1)
+});
+
+export const inboundWhatsappPayloadSchema = z.object({
+  type: z.literal("whatsapp"),
+  from: z.string().trim().min(1),
+  to: z.string().trim().min(1),
+  body: z.string().trim().min(1),
+  mediaUrl: z.string().trim().optional()
+});
+
+export const inboundEmailPayloadSchema = z.object({
+  type: z.literal("email"),
+  from: z.string().trim().min(1),
+  to: z.string().trim().min(1),
+  subject: z.string().trim().optional(),
+  text: z.string().trim().optional(),
+  html: z.string().trim().optional()
+});
+
 export const conversationFiltersSchema = z.object({
   channel: z.enum(["email", "sms", "whatsapp"]).optional(),
   status: z.enum(["OPEN", "CLOSED", "SNOOZED"]).optional(),
@@ -46,3 +70,6 @@ export type InboxConversationFilters = z.infer<typeof conversationFiltersSchema>
 export type InboxSendMessageInput = z.infer<typeof sendMessageSchema>;
 export type InboxPatchConversationInput = z.infer<typeof patchConversationSchema>;
 export type InboxChannelConfigInput = z.infer<typeof channelConfigSchema>;
+export type InboundSmsPayload = z.infer<typeof inboundSmsPayloadSchema>;
+export type InboundWhatsappPayload = z.infer<typeof inboundWhatsappPayloadSchema>;
+export type InboundEmailPayload = z.infer<typeof inboundEmailPayloadSchema>;

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { redisConnection } from "@/lib/redis";
+import { getRedisConnection } from "@/lib/redis";
 
 export type HealthStatus = "ok" | "error";
 
@@ -25,6 +25,12 @@ export interface HealthDatabasePort {
 export interface HealthRedisPort {
   ping(): Promise<string>;
 }
+
+const redisHealthPort: HealthRedisPort = {
+  ping() {
+    return getRedisConnection().ping();
+  }
+};
 
 async function measureDependency(check: () => Promise<void>): Promise<HealthDependencyStatus> {
   const startedAt = Date.now();
@@ -52,7 +58,7 @@ function withTimeout<T>(operation: Promise<T>, timeoutMs: number, label: string)
   ]);
 }
 
-export function createHealthService(database: HealthDatabasePort = prisma, redis: HealthRedisPort = redisConnection) {
+export function createHealthService(database: HealthDatabasePort = prisma, redis: HealthRedisPort = redisHealthPort) {
   return {
     async check(): Promise<HealthCheckResult> {
       const [databaseStatus, redisStatus] = await Promise.all([

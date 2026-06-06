@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAgencyContext } from "@/lib/api";
+import { ApiError, apiErrorResponse, getAgencyContext } from "@/lib/api";
 import { createDealSchema } from "@/modules/pipelines/pipeline.schemas";
 import { pipelineService, PipelineResourceNotFoundError } from "@/modules/pipelines/pipeline.service";
 
@@ -26,7 +26,9 @@ export async function POST(request: NextRequest, context: PipelineDealsRouteCont
     const deal = await pipelineService.createDeal(agencyContext.agencyId, context.params.id, input);
     return NextResponse.json({ data: deal }, { status: 201 });
   } catch (error) {
-    const status = error instanceof PipelineResourceNotFoundError ? 404 : 400;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status });
+    if (error instanceof PipelineResourceNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error, "Bad request");
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { AppWindow, Bell, Building2, LogOut, Plus } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
@@ -72,27 +72,53 @@ export function DashboardShell({ children }: Readonly<{ children: React.ReactNod
   }, [me]);
 
   return (
-    <div className="min-h-screen bg-background md:grid md:grid-cols-[15rem_1fr]" style={style}>
-      <aside className="flex border-b px-3 py-4 md:border-b-0 md:border-r">
-        <div className="flex min-h-full w-full flex-col">
-          <div className="mb-4 px-3 md:mb-6">
-            <p className="text-sm font-semibold">{me?.agency.name ?? "CRM Ventas"}</p>
-            <p className="text-xs text-muted-foreground">{me?.agency.plan ?? "Workspace de agencia"}</p>
+    <div className="min-h-screen bg-background text-on-surface" style={style}>
+      <aside className="fixed left-0 top-0 z-50 flex h-full w-sidebar-width flex-col border-r border-outline-variant bg-surface-container-lowest py-stack-lg">
+        <div className="mb-stack-lg flex items-center gap-3 px-container-padding">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Building2 className="h-4 w-4" />
           </div>
-          <DashboardNav />
-          <div className="mt-4 space-y-2 border-t pt-3 md:mt-auto">
-            <div className="px-3">
-              <p className="truncate text-xs font-medium">{me?.email ?? "Cargando usuario..."}</p>
-              <p className="text-xs text-muted-foreground">{me?.role ?? ""}</p>
-            </div>
-            <Button variant="ghost" className="w-full justify-start" onClick={() => void signOut({ callbackUrl: "/login" })}>
-              <LogOut className="h-4 w-4" />
-              Cerrar sesion
-            </Button>
+          <div className="min-w-0">
+            <p className="truncate text-display-md font-semibold leading-6 text-primary">{me?.agency.name ?? "CRM Ventas"}</p>
+            <p className="truncate text-label-sm uppercase text-secondary">{me?.agency.plan ?? "Workspace de agencia"}</p>
           </div>
         </div>
+        <DashboardNav />
+        <div className="mx-3 mt-auto space-y-2 border-t border-outline-variant pt-stack-md">
+          <div className="rounded-lg bg-surface-container-low px-3 py-2">
+            <p className="truncate text-label-md text-on-surface">{me?.email ?? "Cargando usuario..."}</p>
+            <p className="text-label-sm uppercase text-secondary">{me?.role ?? ""}</p>
+          </div>
+          <Button variant="ghost" className="w-full justify-start text-secondary hover:bg-surface-container-low hover:text-on-surface" onClick={() => void signOut({ callbackUrl: "/login" })}>
+            <LogOut className="h-4 w-4" />
+            Cerrar sesión
+          </Button>
+        </div>
       </aside>
-      <main className="min-w-0">{children}</main>
+
+      <header className="fixed right-0 top-0 z-40 flex h-16 w-[calc(100%-240px)] items-center justify-between border-b border-outline-variant bg-surface px-gutter">
+        <div className="min-w-0">
+          <p className="truncate text-label-md font-semibold text-on-surface">Workspace comercial</p>
+          <p className="truncate text-label-sm text-secondary">CRM, inbox, formularios y automatizaciones</p>
+        </div>
+        <div className="flex items-center gap-stack-sm">
+          <Button variant="ghost" className="h-9 w-9 px-0 text-secondary hover:bg-surface-container-low hover:text-primary" aria-label="Notificaciones">
+            <Bell className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" className="h-9 w-9 px-0 text-secondary hover:bg-surface-container-low hover:text-primary" aria-label="Aplicaciones">
+            <AppWindow className="h-4 w-4" />
+          </Button>
+          <Button className="rounded bg-primary px-4 text-label-md text-primary-foreground hover:bg-primary-container">
+            <Plus className="h-4 w-4" />
+            Nuevo registro
+          </Button>
+          <div className="ml-1 flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant bg-tertiary-fixed text-label-md font-semibold text-tertiary">
+            {me?.email?.slice(0, 1).toUpperCase() ?? "U"}
+          </div>
+        </div>
+      </header>
+
+      <main className="ml-sidebar-width mt-16 min-h-[calc(100vh-64px)] min-w-0 bg-background">{children}</main>
     </div>
   );
 }

@@ -41,15 +41,19 @@ export default function ChannelSettingsRoute() {
   }
 
   return (
-    <section className="max-w-4xl space-y-6 p-6">
+    <section className="mx-auto max-w-6xl space-y-stack-lg p-container-padding">
       <div>
-        <h1 className="text-2xl font-semibold">Configuracion de canales</h1>
-        <p className="text-sm text-muted-foreground">Guarda credenciales de la agencia para email, SMS y WhatsApp.</p>
+        <p className="text-label-sm uppercase text-primary">Ajustes del sistema</p>
+        <h1 className="text-display-lg text-on-background">Configuracion de canales</h1>
+        <p className="text-body-md text-secondary">Guarda credenciales de la agencia para email, SMS y WhatsApp.</p>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="rounded-lg border p-4">
-          <h2 className="mb-4 font-semibold">Email</h2>
-          <div className="grid gap-3 md:grid-cols-2">
+      <form onSubmit={handleSubmit} className="grid gap-stack-lg xl:grid-cols-3">
+        <div className="rounded-lg border border-outline-variant bg-surface-container-lowest shadow-sm">
+          <div className="border-b border-outline-variant bg-surface-bright p-4">
+            <h2 className="text-headline-sm text-on-surface">Email</h2>
+            <p className="text-body-sm text-secondary">Salida transaccional por SendGrid.</p>
+          </div>
+          <div className="grid gap-3 p-4">
             <div className="space-y-2">
               <Label htmlFor="sendgridApiKey">API Key de SendGrid</Label>
               <Input id="sendgridApiKey" name="sendgridApiKey" type="password" />
@@ -60,9 +64,12 @@ export default function ChannelSettingsRoute() {
             </div>
           </div>
         </div>
-        <div className="rounded-lg border p-4">
-          <h2 className="mb-4 font-semibold">SMS</h2>
-          <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-lg border border-outline-variant bg-surface-container-lowest shadow-sm">
+          <div className="border-b border-outline-variant bg-surface-bright p-4">
+            <h2 className="text-headline-sm text-on-surface">SMS</h2>
+            <p className="text-body-sm text-secondary">Mensajeria de texto por Twilio.</p>
+          </div>
+          <div className="grid gap-3 p-4">
             <div className="space-y-2">
               <Label htmlFor="smsAccountSid">Account SID</Label>
               <Input id="smsAccountSid" name="smsAccountSid" />
@@ -77,9 +84,12 @@ export default function ChannelSettingsRoute() {
             </div>
           </div>
         </div>
-        <div className="rounded-lg border p-4">
-          <h2 className="mb-4 font-semibold">WhatsApp</h2>
-          <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-lg border border-outline-variant bg-surface-container-lowest shadow-sm">
+          <div className="border-b border-outline-variant bg-surface-bright p-4">
+            <h2 className="text-headline-sm text-on-surface">WhatsApp Business</h2>
+            <p className="text-body-sm text-secondary">API vía Twilio para conversaciones.</p>
+          </div>
+          <div className="grid gap-3 p-4">
             <div className="space-y-2">
               <Label htmlFor="whatsappAccountSid">Account SID</Label>
               <Input id="whatsappAccountSid" name="whatsappAccountSid" />
@@ -94,12 +104,12 @@ export default function ChannelSettingsRoute() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 xl:col-span-3">
           <Button type="submit">
             <Save className="h-4 w-4" />
             Guardar
           </Button>
-          <span className="text-sm text-muted-foreground">{status}</span>
+          <span className="text-body-sm text-secondary">{status}</span>
         </div>
       </form>
     </section>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Copy, Edit, ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -132,7 +132,7 @@ export default function DashboardFormsRoute() {
     return `${origin}/f/${agencySlug}/${form.id}`;
   }
 
-  async function loadForms(): Promise<void> {
+  const loadForms = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
@@ -154,11 +154,11 @@ export default function DashboardFormsRoute() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedId]);
 
   useEffect(() => {
     void loadForms();
-  }, []);
+  }, [loadForms]);
 
   function openCreateDialog(): void {
     setSelectedId(null);
@@ -218,13 +218,13 @@ export default function DashboardFormsRoute() {
   }
 
   return (
-    <section className="grid min-h-screen overflow-hidden md:h-screen md:grid-cols-[22rem_1fr]">
-      <aside className="border-b bg-background md:border-b-0 md:border-r">
-        <div className="space-y-3 border-b p-4">
+    <section className="grid h-[calc(100vh-64px)] overflow-hidden md:grid-cols-[22rem_1fr]">
+      <aside className="border-b border-outline-variant bg-surface-container-lowest md:border-b-0 md:border-r">
+        <div className="space-y-3 border-b border-outline-variant bg-surface-bright p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h1 className="text-xl font-semibold">Formularios</h1>
-              <p className="text-sm text-muted-foreground">Captura leads y dispara automatizaciones.</p>
+              <h1 className="text-headline-sm text-on-surface">Formularios</h1>
+              <p className="text-body-sm text-secondary">Captura leads y dispara automatizaciones.</p>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -295,7 +295,7 @@ export default function DashboardFormsRoute() {
                             >
                               <option value="text">Texto</option>
                               <option value="email">Email</option>
-                              <option value="phone">Telefono</option>
+                              <option value="phone">Teléfono</option>
                               <option value="textarea">Textarea</option>
                               <option value="select">Select</option>
                               <option value="checkbox">Checkbox</option>
@@ -346,23 +346,23 @@ export default function DashboardFormsRoute() {
             Actualizar
           </Button>
         </div>
-        {error ? <div className="m-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+        {error ? <div className="m-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-body-sm text-red-700">{error}</div> : null}
         <div className="max-h-[28rem] overflow-y-auto md:h-[calc(100vh-12rem)] md:max-h-none">
           {loading ? (
-            <p className="p-4 text-sm text-muted-foreground">Cargando formularios...</p>
+            <p className="p-4 text-body-sm text-secondary">Cargando formularios...</p>
           ) : forms.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">Todavia no hay formularios.</p>
+            <p className="p-4 text-body-sm text-secondary">Todavía no hay formularios.</p>
           ) : (
             forms.map((form) => (
               <button
                 key={form.id}
                 type="button"
                 onClick={() => setSelectedId(form.id)}
-                className={`w-full border-b p-4 text-left hover:bg-muted/60 ${selectedForm?.id === form.id ? "bg-muted" : ""}`}
+                className={`w-full border-b border-outline-variant p-4 text-left hover:bg-surface-container-low ${selectedForm?.id === form.id ? "bg-surface-container-low" : ""}`}
               >
-                <p className="truncate text-sm font-semibold">{form.name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {form.fields.length} campos - {form.submissions.length} envios recientes
+                <p className="truncate text-body-sm font-semibold text-on-surface">{form.name}</p>
+                <p className="mt-1 text-label-sm text-secondary">
+                  {form.fields.length} campos - {form.submissions.length} envíos recientes
                 </p>
               </button>
             ))
@@ -370,13 +370,13 @@ export default function DashboardFormsRoute() {
         </div>
       </aside>
 
-      <main className="min-w-0 overflow-y-auto p-6">
+      <main className="min-w-0 overflow-y-auto bg-background p-container-padding">
         {selectedForm ? (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-semibold">{selectedForm.name}</h2>
-                <p className="text-sm text-muted-foreground">{selectedForm.workflow?.name ?? "Sin automatizacion asociada"}</p>
+                <h2 className="text-display-md text-on-background">{selectedForm.name}</h2>
+                <p className="text-body-sm text-secondary">{selectedForm.workflow?.name ?? "Sin automatizacion asociada"}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => void copyPublicUrl(selectedForm)}>
@@ -422,7 +422,7 @@ export default function DashboardFormsRoute() {
                 <h3 className="font-semibold">Envios recientes</h3>
               </div>
               {selectedForm.submissions.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">Todavia no hay envios.</p>
+                <p className="p-4 text-sm text-muted-foreground">Todavía no hay envíos.</p>
               ) : (
                 <div className="divide-y">
                   {selectedForm.submissions.map((submission) => (

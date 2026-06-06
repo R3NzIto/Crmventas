@@ -1,5 +1,7 @@
 import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 
 export interface AgencyContext {
   userId: string;
@@ -22,4 +24,26 @@ export async function getAgencyContext(request: NextRequest): Promise<AgencyCont
 
 export function parseRouteId(params: { id: string }): string {
   return params.id;
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+  }
+}
+
+export function apiErrorResponse(error: unknown, fallbackMessage = "Internal server error") {
+  if (error instanceof ZodError) {
+    return NextResponse.json({ error: "Invalid request", issues: error.issues }, { status: 400 });
+  }
+
+  if (error instanceof ApiError) {
+    return NextResponse.json({ error: error.message }, { status: error.status });
+  }
+
+  const status = fallbackMessage === "Bad request" ? 400 : 500;
+  return NextResponse.json({ error: status === 500 ? "Internal server error" : fallbackMessage }, { status });
 }

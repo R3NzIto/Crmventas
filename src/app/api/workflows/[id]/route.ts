@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAgencyContext } from "@/lib/api";
+import { ApiError, apiErrorResponse, getAgencyContext } from "@/lib/api";
 import { updateWorkflowSchema } from "@/modules/workflows/workflow.schemas";
 import { workflowAdminService, WorkflowAdminNotFoundError } from "@/modules/workflows/workflow-admin.service";
 
@@ -16,8 +16,10 @@ export async function GET(request: NextRequest, context: WorkflowRouteContext) {
     const workflow = await workflowAdminService.getWorkflowById(agencyContext.agencyId, context.params.id);
     return NextResponse.json({ data: workflow });
   } catch (error) {
-    const status = error instanceof WorkflowAdminNotFoundError ? 404 : 500;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status });
+    if (error instanceof WorkflowAdminNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error);
   }
 }
 
@@ -31,8 +33,10 @@ export async function PATCH(request: NextRequest, context: WorkflowRouteContext)
     const workflow = await workflowAdminService.updateWorkflow(agencyContext.agencyId, context.params.id, input);
     return NextResponse.json({ data: workflow });
   } catch (error) {
-    const status = error instanceof WorkflowAdminNotFoundError ? 404 : 400;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status });
+    if (error instanceof WorkflowAdminNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error, "Bad request");
   }
 }
 
@@ -45,7 +49,9 @@ export async function DELETE(request: NextRequest, context: WorkflowRouteContext
     const workflow = await workflowAdminService.deleteWorkflow(agencyContext.agencyId, context.params.id);
     return NextResponse.json({ data: workflow });
   } catch (error) {
-    const status = error instanceof WorkflowAdminNotFoundError ? 404 : 500;
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status });
+    if (error instanceof WorkflowAdminNotFoundError) {
+      return apiErrorResponse(new ApiError(error.message, 404));
+    }
+    return apiErrorResponse(error);
   }
 }

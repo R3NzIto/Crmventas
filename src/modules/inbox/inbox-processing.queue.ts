@@ -24,12 +24,17 @@ export type InboxInboundJob =
       mediaUrl?: string;
     };
 
-export const inboxProcessingQueue = new Queue<InboxInboundJob>("inbox-processing", {
-  connection: workflowRedisConnectionOptions()
-});
+let inboxProcessingQueue: Queue<InboxInboundJob> | null = null;
+
+export function getInboxProcessingQueue(): Queue<InboxInboundJob> {
+  inboxProcessingQueue ??= new Queue<InboxInboundJob>("inbox-processing", {
+    connection: workflowRedisConnectionOptions()
+  });
+  return inboxProcessingQueue;
+}
 
 export const inboxProcessingQueuePort = {
   add(name: "inbound", data: InboxInboundJob): Promise<unknown> {
-    return inboxProcessingQueue.add(name, data);
+    return getInboxProcessingQueue().add(name, data);
   }
 };

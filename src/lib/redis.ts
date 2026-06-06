@@ -4,12 +4,13 @@ const globalForRedis = globalThis as typeof globalThis & {
   redis?: IORedis;
 };
 
-export const redisConnection: IORedis =
-  globalForRedis.redis ??
-  new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379", {
+export function getRedisConnection(): IORedis {
+  const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
+  const protocol = new URL(redisUrl).protocol;
+  globalForRedis.redis ??= new IORedis(redisUrl, {
+    ...(protocol === "rediss:" ? { tls: {} } : {}),
     maxRetriesPerRequest: null
   });
 
-if (process.env.NODE_ENV !== "production") {
-  globalForRedis.redis = redisConnection;
+  return globalForRedis.redis;
 }

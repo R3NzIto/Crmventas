@@ -2,7 +2,7 @@
 
 import { DndContext, type DragEndEvent, useDraggable, useDroppable } from "@dnd-kit/core";
 import { Edit3, GripVertical, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -97,13 +97,14 @@ function Deal({ deal, onEdit }: { deal: PipelineDeal; onEdit: (deal: PipelineDea
   const origin = dealOrigin(deal);
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-md border bg-background p-3 shadow-sm">
+    <div ref={setNodeRef} style={style} className="group relative rounded border border-outline-variant bg-surface-container-lowest p-3 shadow-sm transition-colors hover:bg-surface-container-low">
+      <div className="absolute bottom-0 left-0 top-0 w-1 rounded-l bg-surface-container-highest transition-colors group-hover:bg-primary" />
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-medium">{deal.title}</p>
+        <div className="min-w-0 pl-2">
+          <p className="line-clamp-2 text-body-sm font-semibold text-on-surface">{deal.title}</p>
           <div className="mt-2 flex flex-wrap gap-1">
-            <span className={cn("rounded px-1.5 py-0.5 text-xs", originClass(origin))}>{origin}</span>
-            <span className="rounded bg-muted px-1.5 py-0.5 text-xs">{statusLabel(deal.status)}</span>
+            <span className={cn("rounded px-1.5 py-0.5 text-label-sm", originClass(origin))}>{origin}</span>
+            <span className="rounded bg-surface-container px-1.5 py-0.5 text-label-sm text-secondary">{statusLabel(deal.status)}</span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -126,8 +127,8 @@ function Deal({ deal, onEdit }: { deal: PipelineDeal; onEdit: (deal: PipelineDea
           </button>
         </div>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{contactName(deal.contact)}</p>
-      <p className="mt-3 text-sm font-semibold">${deal.value.toLocaleString()}</p>
+      <p className="mt-2 pl-2 text-label-sm text-secondary">{contactName(deal.contact)}</p>
+      <p className="mt-3 pl-2 text-body-sm font-semibold text-primary">${deal.value.toLocaleString()}</p>
     </div>
   );
 }
@@ -136,18 +137,22 @@ function Stage({ stage, onEditDeal }: { stage: PipelineStage; onEditDeal: (deal:
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   return (
-    <div ref={setNodeRef} className={cn("min-h-[28rem] rounded-lg border bg-muted/40 p-3", isOver && "ring-2 ring-primary")}>
+    <div ref={setNodeRef} className={cn("flex min-h-[30rem] flex-col rounded-lg border border-dashed border-outline-variant bg-transparent p-3", isOver && "ring-2 ring-primary")}>
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color ?? "#64748b" }} />
-          <h2 className="text-sm font-semibold">{stage.name}</h2>
+          <h2 className="text-label-sm uppercase text-secondary">{stage.name}</h2>
         </div>
-        <span className="text-xs text-muted-foreground">{stage.deals.length}</span>
+        <span className="text-label-sm text-secondary">{stage.deals.length}</span>
       </div>
-      <div className="space-y-3">
-        {stage.deals.map((deal) => (
-          <Deal key={deal.id} deal={deal} onEdit={onEditDeal} />
-        ))}
+      <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+        {stage.deals.length === 0 ? (
+          <div className="flex min-h-[8rem] items-center justify-center rounded border border-dashed border-outline-variant bg-surface-container-lowest p-4 text-center text-body-sm text-secondary">
+            Suelta oportunidades aqui
+          </div>
+        ) : (
+          stage.deals.map((deal) => <Deal key={deal.id} deal={deal} onEdit={onEditDeal} />)
+        )}
       </div>
     </div>
   );
@@ -169,7 +174,7 @@ export function PipelineBoard() {
     [pipelines, selectedPipelineId]
   );
 
-  async function loadPipelines(): Promise<void> {
+  const loadPipelines = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
@@ -189,11 +194,11 @@ export function PipelineBoard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedPipelineId]);
 
   useEffect(() => {
     void loadPipelines();
-  }, []);
+  }, [loadPipelines]);
 
   function updateDealStageLocally(dealId: string, stageId: string): Pipeline[] {
     return pipelines.map((pipeline) => {
@@ -340,17 +345,19 @@ export function PipelineBoard() {
   }
 
   return (
-    <section className="space-y-5 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className="flex h-[calc(100vh-64px)] flex-col overflow-hidden">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-lowest px-container-padding py-stack-md">
         <div>
-          <h1 className="text-2xl font-semibold">Pipelines</h1>
-          <p className="text-sm text-muted-foreground">Mueve oportunidades por etapas comerciales de la agencia.</p>
+          <p className="text-label-sm uppercase text-primary">Pipeline de ventas</p>
+          <h1 className="text-display-md text-on-background">Pipelines</h1>
+          <p className="text-body-sm text-secondary">Mueve oportunidades por etapas comerciales de la agencia.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
           <select
             value={selectedPipeline?.id ?? ""}
             onChange={(event) => setSelectedPipelineId(event.target.value)}
-            className="h-9 rounded-md border bg-background px-3 text-sm"
+            className="h-9 rounded border border-outline-variant bg-surface-container-lowest px-3 text-body-sm text-on-surface"
           >
             {pipelines.map((pipeline) => (
               <option key={pipeline.id} value={pipeline.id}>
@@ -366,12 +373,12 @@ export function PipelineBoard() {
               </Button>
             </DialogTrigger>
             <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Crear pipeline</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                Crea un tablero de ventas con etapas para ordenar oportunidades.
-              </DialogDescription>
-            </DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Crear pipeline</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Crea un tablero de ventas con etapas para ordenar oportunidades.
+                </DialogDescription>
+              </DialogHeader>
               <form onSubmit={(event) => void createPipeline(event)} className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="pipelineName">Nombre</Label>
@@ -391,12 +398,12 @@ export function PipelineBoard() {
               </Button>
             </DialogTrigger>
             <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Crear oportunidad</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                Selecciona un contacto, valor y etapa inicial para la oportunidad.
-              </DialogDescription>
-            </DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Crear oportunidad</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Selecciona un contacto, valor y etapa inicial para la oportunidad.
+                </DialogDescription>
+              </DialogHeader>
               <form onSubmit={(event) => void createDeal(event)} className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="dealTitle">Titulo</Label>
@@ -478,28 +485,31 @@ export function PipelineBoard() {
           </Dialog>
           <Button variant="outline" onClick={() => void loadPipelines()} disabled={loading}>
             <RefreshCw className="h-4 w-4" />
-          Actualizar
+            Actualizar
           </Button>
+          </div>
         </div>
       </div>
 
-      {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+      <div className="flex-1 overflow-auto p-container-padding">
+        {error ? <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-body-sm text-red-700">{error}</div> : null}
 
-      {loading ? (
-        <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Cargando pipeline...</div>
-      ) : !selectedPipeline ? (
-        <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Crea un pipeline para empezar a gestionar oportunidades.</div>
-      ) : selectedPipeline.stages.length === 0 ? (
-        <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Este pipeline no tiene etapas.</div>
-      ) : (
-        <DndContext onDragEnd={(event) => void handleDragEnd(event)}>
-          <div className="grid min-w-[56rem] gap-4 overflow-x-auto md:grid-cols-2 xl:grid-cols-4">
-            {selectedPipeline.stages.map((stage) => (
-              <Stage key={stage.id} stage={stage} onEditDeal={setEditingDeal} />
-            ))}
-          </div>
-        </DndContext>
-      )}
+        {loading ? (
+          <div className="rounded-lg border border-outline-variant bg-surface-container-lowest p-8 text-center text-body-sm text-secondary">Cargando pipeline...</div>
+        ) : !selectedPipeline ? (
+          <div className="rounded-lg border border-outline-variant bg-surface-container-lowest p-8 text-center text-body-sm text-secondary">Crea un pipeline para empezar a gestionar oportunidades.</div>
+        ) : selectedPipeline.stages.length === 0 ? (
+          <div className="rounded-lg border border-outline-variant bg-surface-container-lowest p-8 text-center text-body-sm text-secondary">Este pipeline no tiene etapas.</div>
+        ) : (
+          <DndContext onDragEnd={(event) => void handleDragEnd(event)}>
+            <div className="grid min-w-[72rem] gap-stack-md md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {selectedPipeline.stages.map((stage) => (
+                <Stage key={stage.id} stage={stage} onEditDeal={setEditingDeal} />
+              ))}
+            </div>
+          </DndContext>
+        )}
+      </div>
     </section>
   );
 }

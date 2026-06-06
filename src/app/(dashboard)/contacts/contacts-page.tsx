@@ -1,7 +1,7 @@
 "use client";
 
-import { Edit, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { Edit, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -65,6 +65,20 @@ function formToPayload(form: ContactFormState) {
   };
 }
 
+function contactName(contact: ContactRow): string {
+  return `${contact.firstName} ${contact.lastName}`.trim() || contact.email || contact.phone || "Contacto";
+}
+
+function initials(contact: ContactRow): string {
+  const name = contactName(contact);
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
 export function ContactsPage() {
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [search, setSearch] = useState("");
@@ -76,7 +90,7 @@ export function ContactsPage() {
   const [editingContact, setEditingContact] = useState<ContactRow | null>(null);
   const [form, setForm] = useState<ContactFormState>(emptyForm);
 
-  async function loadContacts(): Promise<void> {
+  const loadContacts = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     const params = new URLSearchParams();
@@ -90,7 +104,7 @@ export function ContactsPage() {
     try {
       const response = await fetch(`/api/contacts?${params.toString()}`);
       if (!response.ok) {
-      throw new Error("No se pudieron cargar los contactos");
+        throw new Error("No se pudieron cargar los contactos");
       }
       const payload = (await response.json()) as ContactsResponse;
       setContacts(payload.data);
@@ -99,14 +113,14 @@ export function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, tag]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       void loadContacts();
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [search, tag]);
+  }, [loadContacts]);
 
   function updateForm(field: keyof ContactFormState, value: string): void {
     setForm((current) => ({ ...current, [field]: value }));
@@ -162,11 +176,12 @@ export function ContactsPage() {
   }
 
   return (
-    <section className="space-y-5 p-6">
-      <div className="flex items-center justify-between gap-3">
+    <section className="flex min-h-[calc(100vh-64px)] flex-col gap-stack-lg p-container-padding">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Contactos</h1>
-          <p className="text-sm text-muted-foreground">Busca, segmenta y gestiona contactos de la agencia.</p>
+          <p className="text-label-sm uppercase text-primary">CRM</p>
+          <h1 className="text-display-lg text-on-background">Contactos</h1>
+          <p className="text-body-md text-secondary">Gestiona clientes, leads y partners de la agencia.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -178,7 +193,7 @@ export function ContactsPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingContact ? "Editar contacto" : "Crear contacto"}</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
+              <DialogDescription className="text-body-sm text-secondary">
                 Completa los datos principales para segmentar y dar seguimiento al contacto.
               </DialogDescription>
             </DialogHeader>
@@ -198,7 +213,7 @@ export function ContactsPage() {
                 <Input id="email" value={form.email} onChange={(event) => updateForm("email", event.target.value)} type="email" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Telefono</Label>
+                <Label htmlFor="phone">Teléfono</Label>
                 <Input id="phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value)} />
               </div>
               <div className="space-y-2">
@@ -210,17 +225,17 @@ export function ContactsPage() {
                 <Input id="source" value={form.source} onChange={(event) => updateForm("source", event.target.value)} />
               </div>
               <Button type="submit" disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
+                {saving ? "Guardando..." : "Guardar contacto"}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-80 max-w-full">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar contactos" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+          <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o email" />
         </div>
         <Input className="w-48" value={tag} onChange={(event) => setTag(event.target.value)} placeholder="Filtrar por tag" />
         <Button variant="outline" onClick={() => void loadContacts()} disabled={loading}>
@@ -229,58 +244,87 @@ export function ContactsPage() {
         </Button>
       </div>
 
-      {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+      {error ? <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-body-sm text-red-700">{error}</div> : null}
 
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="min-w-[48rem] w-full text-sm">
-          <thead className="bg-muted text-left">
-            <tr>
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Telefono</th>
-              <th className="px-4 py-3 font-medium">Tags</th>
-              <th className="px-4 py-3 font-medium">Origen</th>
-              <th className="w-28 px-4 py-3 font-medium">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  Cargando contactos...
-                </td>
+      <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest shadow-sm">
+        <div className="flex items-center justify-between border-b border-outline-variant bg-surface-bright px-4 py-3">
+          <div className="flex items-center gap-2 text-label-md text-secondary">
+            <Users className="h-4 w-4" />
+            {contacts.length} contactos
+          </div>
+          <p className="text-label-sm uppercase text-secondary">Tabla CRM</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[52rem] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-outline-variant bg-surface">
+                <th className="px-4 py-3 text-label-sm uppercase text-secondary">Nombre</th>
+                <th className="px-4 py-3 text-label-sm uppercase text-secondary">Email</th>
+                <th className="px-4 py-3 text-label-sm uppercase text-secondary">Teléfono</th>
+                <th className="px-4 py-3 text-label-sm uppercase text-secondary">Tags</th>
+                <th className="px-4 py-3 text-label-sm uppercase text-secondary">Origen</th>
+                <th className="w-28 px-4 py-3 text-label-sm uppercase text-secondary">Acciones</th>
               </tr>
-            ) : contacts.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  No se encontraron contactos.
-                </td>
-              </tr>
-            ) : (
-              contacts.map((contact) => (
-                <tr key={contact.id} className="border-t">
-                  <td className="px-4 py-3 font-medium">
-                    {contact.firstName} {contact.lastName}
-                  </td>
-                  <td className="px-4 py-3">{contact.email ?? "-"}</td>
-                  <td className="px-4 py-3">{contact.phone ?? "-"}</td>
-                  <td className="px-4 py-3">{contact.tags.join(", ") || "-"}</td>
-                  <td className="px-4 py-3">{contact.source ?? "-"}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1">
-                      <Button variant="ghost" className="h-8 px-2" onClick={() => openEditDialog(contact)} aria-label="Editar contacto">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" className="h-8 px-2" onClick={() => void deleteContact(contact.id)} aria-label="Eliminar contacto">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-outline-variant">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-body-sm text-secondary">
+                    Cargando contactos...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : contacts.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-body-sm text-secondary">
+                    No se encontraron contactos.
+                  </td>
+                </tr>
+              ) : (
+                contacts.map((contact) => (
+                  <tr key={contact.id} className="group hover:bg-surface-container-low">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant bg-surface-container text-label-md font-semibold text-primary">
+                          {initials(contact)}
+                        </div>
+                        <div>
+                          <p className="text-body-sm font-semibold text-on-surface">{contactName(contact)}</p>
+                          <p className="text-label-sm text-secondary">{contact.id.slice(0, 8)}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-body-sm text-on-surface">{contact.email ?? "-"}</td>
+                    <td className="px-4 py-3 text-body-sm text-secondary">{contact.phone ?? "-"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {contact.tags.length === 0 ? (
+                          <span className="text-body-sm text-secondary">-</span>
+                        ) : (
+                          contact.tags.slice(0, 3).map((item) => (
+                            <span key={item} className="rounded-full bg-surface-container px-2 py-0.5 text-label-sm text-secondary">
+                              {item}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-body-sm text-secondary">{contact.source ?? "-"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
+                        <Button variant="ghost" className="h-8 w-8 px-0" onClick={() => openEditDialog(contact)} aria-label="Editar contacto">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" className="h-8 w-8 px-0 text-destructive hover:text-destructive" onClick={() => void deleteContact(contact.id)} aria-label="Eliminar contacto">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );

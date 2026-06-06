@@ -146,7 +146,7 @@ export async function getDashboardMetrics(agencyId: string): Promise<DashboardMe
       channel: conversation.channel,
       unreadCount: conversation.unreadCount,
       lastMessageAt: conversation.lastMessageAt,
-      lastMessage: conversation.messages[0]?.content ?? "Sin mensajes todavia"
+      lastMessage: conversation.messages[0]?.content ?? "Sin mensajes todavía"
     }))
   };
 }

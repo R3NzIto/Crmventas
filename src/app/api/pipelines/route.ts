@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAgencyContext } from "@/lib/api";
+import { apiErrorResponse, getAgencyContext } from "@/lib/api";
 import { createPipelineSchema } from "@/modules/pipelines/pipeline.schemas";
 import { pipelineService } from "@/modules/pipelines/pipeline.service";
 
@@ -22,6 +22,6 @@ export async function POST(request: NextRequest) {
     const pipeline = await pipelineService.createPipeline(context.agencyId, input);
     return NextResponse.json({ data: pipeline }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status: 400 });
+    return apiErrorResponse(error, "Bad request");
   }
 }

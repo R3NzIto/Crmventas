@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAgencyContext } from "@/lib/api";
+import { apiErrorResponse, getAgencyContext } from "@/lib/api";
 import { createWorkflowSchema } from "@/modules/workflows/workflow.schemas";
 import { workflowAdminService } from "@/modules/workflows/workflow-admin.service";
 
@@ -22,6 +22,6 @@ export async function POST(request: NextRequest) {
     const workflow = await workflowAdminService.createWorkflow(context.agencyId, input);
     return NextResponse.json({ data: workflow }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status: 400 });
+    return apiErrorResponse(error, "Bad request");
   }
 }

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
@@ -13,6 +14,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "dotenv -e .env.local -- prisma generate",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate": "dotenv -e .env.local -- prisma migrate dev",
     "db:seed": "dotenv -e .env.local -- prisma db seed",
     "db:studio": "dotenv -e .env.local -- prisma studio",

@@ -1,39 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { validateTwilioSignature } from "@/lib/providers/twilio";
-import { inboxProcessingQueuePort } from "@/modules/inbox/inbox-processing.queue";
-
-function formDataToRecord(formData: FormData): Record<string, string> {
-  const params: Record<string, string> = {};
-  formData.forEach((value, key) => {
-    if (typeof value === "string") {
-      params[key] = value;
-    }
-  });
-  return params;
-}
+import { ApiError, apiErrorResponse } from "@/lib/api";
+import { inboundWebhookService } from "@/services/inbound-webhook.service";
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const params = formDataToRecord(formData);
-    const authToken = process.env.TWILIO_AUTH_TOKEN ?? "";
-    const valid = authToken
-      ? validateTwilioSignature(authToken, request.headers.get("X-Twilio-Signature"), request.url, params)
-      : true;
-
-    if (valid) {
-      await inboxProcessingQueuePort.add("inbound", {
-        type: "sms",
-        from: params.From ?? "",
-        to: params.To ?? "",
-        body: params.Body ?? ""
-      });
-    } else {
-      console.error("Invalid Twilio SMS signature");
-    }
+    const result = await inboundWebhookService.handleSms(
+      await request.formData(),
+      request.url,
+      request.headers.get("X-Twilio-Signature")
+    );
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Twilio SMS inbound webhook enqueue failed", error);
+    return apiErrorResponse(new ApiError("Invalid inbound SMS payload", 400));
   }
-
-  return NextResponse.json({ received: true });
 }

@@ -55,6 +55,7 @@ export async function processInboxInboundJob(job: InboxInboundJob): Promise<void
     await leadAiService.qualifyMessage(message.id);
   } catch (error) {
     console.error("Inbox inbound processing failed", error);
+    throw error;
   }
 }
 

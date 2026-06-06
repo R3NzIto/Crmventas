@@ -6,8 +6,8 @@ export interface WorkflowRepository {
   findActiveByAgency(agencyId: string): Promise<WorkflowRecord[]>;
   createExecution(workflowId: string, contactId: string): Promise<WorkflowExecution>;
   updateExecution(id: string, status: WorkflowExecutionStatus, log: Prisma.InputJsonValue[]): Promise<WorkflowExecution>;
-  addTag(contactId: string, tag: string): Promise<void>;
-  moveOpenDeal(contactId: string, stageId: string): Promise<void>;
+  addTag(agencyId: string, contactId: string, tag: string): Promise<void>;
+  moveOpenDeal(agencyId: string, contactId: string, stageId: string): Promise<void>;
 }
 
 export const workflowRepository: WorkflowRepository = {
@@ -32,8 +32,8 @@ export const workflowRepository: WorkflowRepository = {
       data: { status, log }
     });
   },
-  async addTag(contactId, tag) {
-    const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { tags: true } });
+  async addTag(agencyId, contactId, tag) {
+    const contact = await prisma.contact.findFirst({ where: { id: contactId, agencyId }, select: { tags: true } });
     if (!contact || contact.tags.includes(tag)) {
       return;
     }
@@ -42,9 +42,17 @@ export const workflowRepository: WorkflowRepository = {
       data: { tags: [...contact.tags, tag] }
     });
   },
-  async moveOpenDeal(contactId, stageId) {
+  async moveOpenDeal(agencyId, contactId, stageId) {
+    const targetStage = await prisma.stage.findFirst({
+      where: { id: stageId, pipeline: { agencyId } },
+      select: { id: true }
+    });
+    if (!targetStage) {
+      return;
+    }
+
     const deal = await prisma.deal.findFirst({
-      where: { contactId, status: "open" },
+      where: { contactId, status: "open", contact: { agencyId } },
       select: { id: true }
     });
     if (!deal) {

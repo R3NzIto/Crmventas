@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, CircleDollarSign, Flame, Kanban, Mail, MessageCircle, Moon, Phone, Send } from "lucide-react";
+import { ArrowLeft, CircleDollarSign, Flame, Kanban, Mail, MessageCircle, Moon, Phone, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -131,7 +131,7 @@ export function InboxPage() {
   const selectedMessages = useMemo(() => selected?.messages ?? [], [selected]);
   const selectedDeal = selected?.contact.deals[0] ?? null;
 
-  async function loadConversations() {
+  const loadConversations = useCallback(async (): Promise<void> => {
     setListLoading(true);
     setError(null);
     const params = new URLSearchParams({ status, search });
@@ -150,16 +150,16 @@ export function InboxPage() {
       setSelectedId(payload.data[0].id);
     }
     setListLoading(false);
-  }
+  }, [channel, search, selectedId, status]);
 
-  async function loadSelected(id: string) {
+  const loadSelected = useCallback(async (id: string): Promise<void> => {
     const response = await fetch(`/api/conversations/${id}`);
     if (!response.ok) {
       return;
     }
     const payload = (await response.json()) as { data: InboxConversation };
     setSelected(payload.data);
-  }
+  }, []);
 
   useEffect(() => {
     void loadConversations();
@@ -167,13 +167,13 @@ export function InboxPage() {
       void loadConversations();
     }, 10000);
     return () => window.clearInterval(interval);
-  }, [channel, status, search]);
+  }, [loadConversations]);
 
   useEffect(() => {
     if (selectedId) {
       void loadSelected(selectedId);
     }
-  }, [selectedId]);
+  }, [loadSelected, selectedId]);
 
   async function sendMessage() {
     if (!selected || !content.trim()) {
@@ -220,21 +220,21 @@ export function InboxPage() {
   }
 
   return (
-    <section className="grid min-h-screen overflow-hidden md:h-screen md:grid-cols-[22rem_1fr]">
-      <aside className={cn("border-b bg-background md:border-b-0 md:border-r", selected && "hidden md:block")}>
-        <div className="space-y-3 border-b p-4">
+    <section className="grid h-[calc(100vh-64px)] overflow-hidden md:grid-cols-[20rem_1fr] xl:grid-cols-[20rem_1fr_19rem]">
+      <aside className={cn("border-b border-outline-variant bg-surface-container-lowest md:border-b-0 md:border-r", selected && "hidden md:block")}>
+        <div className="space-y-3 border-b border-outline-variant bg-surface-bright p-4">
           <div>
-          <h1 className="text-xl font-semibold">Inbox</h1>
-          <p className="text-sm text-muted-foreground">Conversaciones unificadas de email, SMS y WhatsApp.</p>
+          <h1 className="text-headline-sm text-on-surface">Mensajes</h1>
+          <p className="text-body-sm text-secondary">Email, SMS y WhatsApp en una sola bandeja.</p>
           </div>
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar en inbox" />
-          <div className="flex gap-1 rounded-md bg-muted p-1">
+          <div className="flex gap-1 overflow-x-auto rounded bg-surface-container p-1">
             {(["all", "email", "sms", "whatsapp"] as const).map((item) => (
               <button
                 key={item}
                 type="button"
                 onClick={() => setChannel(item)}
-                className={cn("flex-1 rounded px-2 py-1.5 text-xs font-medium", channel === item && "bg-background shadow-sm")}
+                className={cn("flex-1 rounded px-2 py-1.5 text-label-sm font-semibold text-secondary", channel === item && "bg-surface-container-lowest text-primary shadow-sm")}
               >
                 {item === "all" ? "Todos" : channelLabels[item]}
               </button>
@@ -243,7 +243,7 @@ export function InboxPage() {
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value as Status)}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            className="h-9 w-full rounded border border-outline-variant bg-surface-container-lowest px-3 text-body-sm text-on-surface"
           >
             <option value="OPEN">Abiertas</option>
             <option value="CLOSED">Cerradas</option>
@@ -251,10 +251,10 @@ export function InboxPage() {
           </select>
         </div>
         <div className="max-h-[32rem] overflow-y-auto md:h-[calc(100vh-13rem)] md:max-h-none">
-          {error ? <p className="p-4 text-sm text-red-600">{error}</p> : null}
-          {listLoading ? <p className="p-4 text-sm text-muted-foreground">Cargando conversaciones...</p> : null}
+          {error ? <p className="p-4 text-body-sm text-red-600">{error}</p> : null}
+          {listLoading ? <p className="p-4 text-body-sm text-secondary">Cargando conversaciones...</p> : null}
           {!listLoading && !error && conversations.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No se encontraron conversaciones.</p>
+            <p className="p-4 text-body-sm text-secondary">No se encontraron conversaciones.</p>
           ) : null}
           {!listLoading && !error ? conversations.map((conversation) => {
             const lastMessage = conversation.messages[0];
@@ -264,20 +264,21 @@ export function InboxPage() {
                 key={conversation.id}
                 type="button"
                 onClick={() => setSelectedId(conversation.id)}
-                className={cn("w-full border-b p-4 text-left hover:bg-muted/60", selectedId === conversation.id && "bg-muted")}
+                className={cn("relative w-full border-b border-outline-variant p-4 text-left transition-colors hover:bg-surface-container-low", selectedId === conversation.id && "bg-surface-container-low")}
               >
+                {selectedId === conversation.id ? <div className="absolute bottom-0 left-0 top-0 w-1 bg-primary" /> : null}
                 <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-tertiary-fixed text-label-md font-semibold text-tertiary">
                     {contactName(conversation.contact).slice(0, 1).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-medium">{contactName(conversation.contact)}</p>
-                      <span className="text-xs text-muted-foreground">
+                      <p className="truncate text-body-sm font-semibold text-on-surface">{contactName(conversation.contact)}</p>
+                      <span className="text-label-sm text-secondary">
                         {conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
                       </span>
                     </div>
-                    <p className="mt-1 truncate text-sm text-muted-foreground">{lastMessage?.content ?? "Sin mensajes todavia"}</p>
+                    <p className="mt-1 truncate text-body-sm text-secondary">{lastMessage?.content ?? "Sin mensajes todavía"}</p>
                     <div className="mt-2 flex items-center gap-2">
                       <span className={cn("inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs", channelStyles[conversation.channel])}>
                         <ChannelIcon channel={conversation.channel} />
@@ -302,15 +303,15 @@ export function InboxPage() {
       <main className={cn("flex min-w-0 flex-col", !selected && "hidden md:flex")}>
         {selected ? (
           <>
-            <header className="flex items-center justify-between border-b p-4">
+            <header className="flex items-center justify-between border-b border-outline-variant bg-surface-container-lowest p-4">
               <div className="flex items-center gap-3">
                 <Button variant="ghost" className="md:hidden" onClick={() => setSelected(null)}>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                  <h2 className="font-semibold">{contactName(selected.contact)}</h2>
+                  <h2 className="text-headline-sm text-on-surface">{contactName(selected.contact)}</h2>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{channelLabels[selected.channel]}</span>
+                    <span className="text-body-sm text-secondary">{channelLabels[selected.channel]}</span>
                     <span className={cn("rounded px-2 py-0.5 text-xs", statusClass(selected.status))}>{statusLabel(selected.status)}</span>
                     {selected.unreadCount > 0 ? <span className="rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground">Sin leer</span> : null}
                     {selected.contact.tags.includes("hot-lead") ? (
@@ -333,7 +334,7 @@ export function InboxPage() {
               </div>
             </header>
             {selected.leadQualifications[0] ? (
-              <div className="border-b bg-emerald-50 px-4 py-3 text-sm">
+              <div className="border-b border-outline-variant bg-emerald-50 px-4 py-3 text-body-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={cn("rounded px-2 py-0.5 text-xs font-medium", leadScoreClass(selected.leadQualifications[0].leadScore))}>
                     Lead {selected.leadQualifications[0].leadScore}
@@ -344,16 +345,16 @@ export function InboxPage() {
                 <p className="mt-2 text-emerald-950">{selected.leadQualifications[0].recommendedAction}</p>
               </div>
             ) : null}
-            <div className="grid gap-3 border-b bg-background p-4 lg:grid-cols-[1fr_auto]">
+            <div className="grid gap-3 border-b border-outline-variant bg-surface-container-lowest p-4 lg:grid-cols-[1fr_auto]">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm font-medium">{selectedDeal ? selectedDeal.title : "Sin oportunidad abierta"}</p>
-                  {selectedDeal ? <span className="rounded bg-muted px-2 py-0.5 text-xs">{selectedDeal.stage.name}</span> : null}
+                  <CircleDollarSign className="h-4 w-4 text-secondary" />
+                  <p className="text-body-sm font-semibold text-on-surface">{selectedDeal ? selectedDeal.title : "Sin oportunidad abierta"}</p>
+                  {selectedDeal ? <span className="rounded bg-surface-container px-2 py-0.5 text-label-sm text-secondary">{selectedDeal.stage.name}</span> : null}
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body-sm text-secondary">
                   {selectedDeal
-                    ? `${selectedDeal.stage.pipeline.name} · $${selectedDeal.value.toLocaleString()}`
+                    ? `${selectedDeal.stage.pipeline.name} - $${selectedDeal.value.toLocaleString()}`
                     : "Crea una oportunidad para hacer seguimiento desde el pipeline."}
                 </p>
               </div>
@@ -377,24 +378,34 @@ export function InboxPage() {
                 </Button>
               </div>
             </div>
-            <div className="flex-1 space-y-3 overflow-y-auto bg-muted/30 p-5">
-              {selectedMessages.map((message) => (
-                <div key={message.id} className={cn("flex", message.direction === "outbound" ? "justify-end" : "justify-start")}>
-                  <div
-                    className={cn(
-                      "max-w-[70%] rounded-lg px-3 py-2 text-sm shadow-sm",
-                      message.direction === "outbound" ? "bg-primary text-primary-foreground" : "border bg-background"
-                    )}
-                  >
-                    <p>{message.content}</p>
-                    <p className={cn("mt-1 text-xs", message.direction === "outbound" ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                      {message.sentAt ? new Date(message.sentAt).toLocaleString() : message.status}
-                    </p>
+            <div className="flex-1 space-y-3 overflow-y-auto bg-background p-5">
+              {selectedMessages.length === 0 ? (
+                <div className="flex h-full min-h-[16rem] items-center justify-center rounded-lg border border-dashed border-outline-variant bg-surface-container-lowest p-6 text-center">
+                  <div>
+                    <MessageCircle className="mx-auto mb-3 h-8 w-8 text-secondary" />
+                    <p className="text-body-sm font-semibold text-on-surface">Sin mensajes todavía</p>
+                    <p className="mt-1 text-body-sm text-secondary">Escribe una respuesta para iniciar el seguimiento.</p>
                   </div>
                 </div>
-              ))}
+              ) : (
+                selectedMessages.map((message) => (
+                  <div key={message.id} className={cn("flex", message.direction === "outbound" ? "justify-end" : "justify-start")}>
+                    <div
+                      className={cn(
+                        "max-w-[70%] rounded-lg px-3 py-2 text-body-sm shadow-sm",
+                        message.direction === "outbound" ? "bg-primary text-primary-foreground" : "border border-outline-variant bg-surface-container-lowest text-on-surface"
+                      )}
+                    >
+                      <p>{message.content}</p>
+                      <p className={cn("mt-1 text-xs", message.direction === "outbound" ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                        {message.sentAt ? new Date(message.sentAt).toLocaleString() : message.status}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-            <div className="flex gap-2 border-t p-4">
+            <div className="flex gap-2 border-t border-outline-variant bg-surface-container-lowest p-4">
               <Input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Escribir respuesta" />
               <Button onClick={() => void sendMessage()} disabled={loading}>
                 <Send className="h-4 w-4" />
@@ -403,9 +414,75 @@ export function InboxPage() {
             </div>
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">Selecciona una conversacion para ver el hilo.</div>
+          <div className="flex flex-1 items-center justify-center text-body-sm text-secondary">Selecciona una conversación para ver el hilo.</div>
         )}
       </main>
+      <aside className="hidden border-l border-outline-variant bg-surface-container-lowest xl:flex xl:flex-col">
+        {selected ? (
+          <>
+            <div className="border-b border-outline-variant p-gutter text-center">
+              <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-tertiary-fixed text-headline-sm font-semibold text-tertiary">
+                {contactName(selected.contact).slice(0, 2).toUpperCase()}
+              </div>
+              <h3 className="text-headline-sm text-on-surface">{contactName(selected.contact)}</h3>
+              <p className="text-body-sm text-secondary">{selected.contact.email ?? selected.contact.phone ?? "Sin dato principal"}</p>
+            </div>
+            <div className="border-b border-outline-variant p-gutter">
+              <h4 className="mb-3 text-label-md uppercase text-secondary">Información del contacto</h4>
+              <div className="space-y-2 text-body-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-secondary">Email</span>
+                  <span className="truncate text-on-surface">{selected.contact.email ?? "-"}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-secondary">Teléfono</span>
+                  <span className="text-on-surface">{selected.contact.phone ?? "-"}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-secondary">Canal</span>
+                  <span className="text-on-surface">{channelLabels[selected.channel]}</span>
+                </div>
+              </div>
+            </div>
+            <div className="border-b border-outline-variant bg-surface-bright p-gutter">
+              <h4 className="mb-2 flex items-center gap-1 text-label-md uppercase text-secondary">
+                <Sparkles className="h-4 w-4 text-tertiary" />
+                Score IA
+              </h4>
+              {selected.leadQualifications[0] ? (
+                <>
+                  <div className="mb-1 h-2 rounded-full bg-surface-container">
+                    <div className="h-2 rounded-full bg-primary" style={{ width: `${selected.leadQualifications[0].leadScore}%` }} />
+                  </div>
+                  <div className="mb-2 flex justify-between text-label-sm text-secondary">
+                    <span>Frio</span>
+                    <span>Caliente</span>
+                  </div>
+                  <p className="border-l-2 border-primary pl-2 text-body-sm text-on-surface">{selected.leadQualifications[0].recommendedAction}</p>
+                </>
+              ) : (
+                <p className="text-body-sm text-secondary">Sin calificación IA para esta conversación.</p>
+              )}
+            </div>
+            <div className="flex-1 p-gutter">
+              <h4 className="mb-3 text-label-md uppercase text-secondary">Tags</h4>
+              <div className="flex flex-wrap gap-1">
+                {selected.contact.tags.length === 0 ? (
+                  <span className="text-body-sm text-secondary">Sin tags</span>
+                ) : (
+                  selected.contact.tags.map((tag) => (
+                    <span key={tag} className="rounded bg-surface-container px-2 py-0.5 text-label-sm text-secondary">
+                      {tag}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex h-full items-center justify-center p-6 text-center text-body-sm text-secondary">Selecciona una conversación para ver contexto.</div>
+        )}
+      </aside>
     </section>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, RefreshCw, Trash2, Workflow as WorkflowIcon } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -279,7 +279,7 @@ export function WorkflowsPage() {
 
   const selectedWorkflow = useMemo(() => workflows.find((workflow) => workflow.id === selectedId) ?? workflows[0], [workflows, selectedId]);
 
-  async function loadWorkflows(): Promise<void> {
+  const loadWorkflows = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     const response = await fetch("/api/workflows");
@@ -294,11 +294,11 @@ export function WorkflowsPage() {
       setSelectedId(payload.data[0].id);
     }
     setLoading(false);
-  }
+  }, [selectedId]);
 
   useEffect(() => {
     void loadWorkflows();
-  }, []);
+  }, [loadWorkflows]);
 
   function updateForm<K extends keyof WorkflowFormState>(key: K, value: WorkflowFormState[K]): void {
     setForm((current) => ({ ...current, [key]: value }));
@@ -365,13 +365,13 @@ export function WorkflowsPage() {
   }
 
   return (
-    <section className="grid min-h-screen overflow-hidden md:h-screen md:grid-cols-[22rem_1fr]">
-      <aside className="border-b bg-background md:border-b-0 md:border-r">
-        <div className="space-y-3 border-b p-4">
+    <section className="grid h-[calc(100vh-64px)] overflow-hidden md:grid-cols-[22rem_1fr]">
+      <aside className="border-b border-outline-variant bg-surface-container-lowest md:border-b-0 md:border-r">
+        <div className="space-y-3 border-b border-outline-variant bg-surface-bright p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h1 className="text-xl font-semibold">Automatizaciones</h1>
-              <p className="text-sm text-muted-foreground">Automatiza eventos de CRM, pipelines, inbox y formularios.</p>
+              <h1 className="text-headline-sm text-on-surface">Automatizaciones</h1>
+              <p className="text-body-sm text-secondary">Automatiza eventos de CRM, pipelines, inbox y formularios.</p>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -552,19 +552,19 @@ export function WorkflowsPage() {
             Actualizar
           </Button>
         </div>
-        {error ? <div className="m-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+        {error ? <div className="m-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-body-sm text-red-700">{error}</div> : null}
         <div className="max-h-[28rem] overflow-y-auto md:h-[calc(100vh-12rem)] md:max-h-none">
           {loading ? (
-            <p className="p-4 text-sm text-muted-foreground">Cargando automatizaciones...</p>
+            <p className="p-4 text-body-sm text-secondary">Cargando automatizaciones...</p>
           ) : workflows.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">Todavia no hay automatizaciones.</p>
+            <p className="p-4 text-body-sm text-secondary">Todavía no hay automatizaciones.</p>
           ) : (
             workflows.map((workflow) => (
               <button
                 key={workflow.id}
                 type="button"
                 onClick={() => setSelectedId(workflow.id)}
-                className={`w-full border-b p-4 text-left hover:bg-muted/60 ${selectedWorkflow?.id === workflow.id ? "bg-muted" : ""}`}
+                className={`w-full border-b border-outline-variant p-4 text-left hover:bg-surface-container-low ${selectedWorkflow?.id === workflow.id ? "bg-surface-container-low" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -581,13 +581,13 @@ export function WorkflowsPage() {
         </div>
       </aside>
 
-      <main className="min-w-0 overflow-y-auto p-6">
+      <main className="min-w-0 overflow-y-auto bg-background p-container-padding">
         {selectedWorkflow ? (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-semibold">{selectedWorkflow.name}</h2>
-                <p className="text-sm text-muted-foreground">{describeTrigger(selectedWorkflow.trigger)}</p>
+                <h2 className="text-display-md text-on-background">{selectedWorkflow.name}</h2>
+                <p className="text-body-sm text-secondary">{describeTrigger(selectedWorkflow.trigger)}</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => void toggleWorkflow(selectedWorkflow)}>
@@ -627,7 +627,7 @@ export function WorkflowsPage() {
                 <h3 className="font-semibold">Ejecuciones recientes</h3>
               </div>
               {selectedWorkflow.executions.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">Todavia no hay ejecuciones.</p>
+                <p className="p-4 text-sm text-muted-foreground">Todavía no hay ejecuciones.</p>
               ) : (
                 <div className="divide-y">
                   {selectedWorkflow.executions.map((execution) => (
