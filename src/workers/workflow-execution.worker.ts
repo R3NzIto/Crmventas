@@ -102,7 +102,7 @@ export async function processWorkflowExecution(data: WorkflowExecutionJob): Prom
       step: "error",
       status: "failed",
       at: new Date().toISOString(),
-      label: "Error al ejecutar automatizacion",
+      label: "Error al ejecutar automatización",
       detail: error instanceof Error ? error.message : "Fallo desconocido"
     });
     await workflowRepository.updateExecution(execution.id, "failed", log);

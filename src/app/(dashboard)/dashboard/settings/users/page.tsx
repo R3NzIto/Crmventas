@@ -118,7 +118,7 @@ export default function AgencyUsersRoute() {
                   <Input id="email" name="email" type="email" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Contrasena</Label>
+                  <Label htmlFor="password">Contraseña</Label>
                   <Input id="password" name="password" type="password" minLength={8} required />
                 </div>
                 <div className="space-y-2">

@@ -237,7 +237,7 @@ export default function DashboardFormsRoute() {
                 <DialogHeader>
                   <DialogTitle>{selectedId ? "Editar formulario" : "Crear formulario"}</DialogTitle>
                   <DialogDescription className="text-sm text-muted-foreground">
-                    Define los campos que completara el lead y la automatizacion asociada.
+                    Definí los campos que completará el lead y la automatización asociada.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={(event) => void saveForm(event)} className="space-y-4">
@@ -253,7 +253,7 @@ export default function DashboardFormsRoute() {
                       onChange={(event) => updateEditor("workflowId", event.target.value)}
                       className="h-9 w-full rounded-md border bg-background px-3 text-sm"
                     >
-                      <option value="">Sin automatizacion</option>
+                      <option value="">Sin automatización</option>
                       {workflows.map((workflow) => (
                         <option key={workflow.id} value={workflow.id}>
                           {workflow.name}
@@ -376,7 +376,7 @@ export default function DashboardFormsRoute() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-display-md text-on-background">{selectedForm.name}</h2>
-                <p className="text-body-sm text-secondary">{selectedForm.workflow?.name ?? "Sin automatizacion asociada"}</p>
+                <p className="text-body-sm text-secondary">{selectedForm.workflow?.name ?? "Sin automatización asociada"}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => void copyPublicUrl(selectedForm)}>

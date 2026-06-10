@@ -44,7 +44,7 @@ export default function ChannelSettingsRoute() {
     <section className="mx-auto max-w-6xl space-y-stack-lg p-container-padding">
       <div>
         <p className="text-label-sm uppercase text-primary">Ajustes del sistema</p>
-        <h1 className="text-display-lg text-on-background">Configuracion de canales</h1>
+        <h1 className="text-display-lg text-on-background">Configuración de canales</h1>
         <p className="text-body-md text-secondary">Guarda credenciales de la agencia para email, SMS y WhatsApp.</p>
       </div>
       <form onSubmit={handleSubmit} className="grid gap-stack-lg xl:grid-cols-3">

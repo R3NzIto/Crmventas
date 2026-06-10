@@ -148,7 +148,7 @@ function Stage({ stage, onEditDeal }: { stage: PipelineStage; onEditDeal: (deal:
       <div className="flex-1 space-y-3 overflow-y-auto pr-1">
         {stage.deals.length === 0 ? (
           <div className="flex min-h-[8rem] items-center justify-center rounded border border-dashed border-outline-variant bg-surface-container-lowest p-4 text-center text-body-sm text-secondary">
-            Suelta oportunidades aqui
+            Soltá oportunidades aquí
           </div>
         ) : (
           stage.deals.map((deal) => <Deal key={deal.id} deal={deal} onEdit={onEditDeal} />)
@@ -401,12 +401,12 @@ export function PipelineBoard() {
               <DialogHeader>
                 <DialogTitle>Crear oportunidad</DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground">
-                  Selecciona un contacto, valor y etapa inicial para la oportunidad.
+                  Seleccioná un contacto, valor y etapa inicial para la oportunidad.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={(event) => void createDeal(event)} className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="dealTitle">Titulo</Label>
+                  <Label htmlFor="dealTitle">Título</Label>
                   <Input id="dealTitle" name="title" required />
                 </div>
                 <div className="space-y-2">
@@ -450,7 +450,7 @@ export function PipelineBoard() {
               {editingDeal ? (
                 <form onSubmit={(event) => void updateDeal(event)} className="space-y-3">
                   <div className="space-y-2">
-                    <Label htmlFor="editDealTitle">Titulo</Label>
+                    <Label htmlFor="editDealTitle">Título</Label>
                     <Input id="editDealTitle" name="title" defaultValue={editingDeal.title} required />
                   </div>
                   <div className="space-y-2">

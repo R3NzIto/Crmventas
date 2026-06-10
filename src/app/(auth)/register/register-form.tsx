@@ -79,7 +79,7 @@ export function RegisterForm() {
         <Input id="email" name="email" type="email" required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Contrasena</Label>
+        <Label htmlFor="password">Contraseña</Label>
         <Input id="password" name="password" type="password" minLength={8} required />
       </div>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -87,7 +87,7 @@ export function RegisterForm() {
         {saving ? "Creando..." : "Crear agencia"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        Ya tenes una cuenta?{" "}
+        ¿Ya tenés una cuenta?{" "}
         <Link className="font-medium text-foreground hover:underline" href="/login">
           Ingresar
         </Link>

@@ -253,7 +253,7 @@ function logEntryLabel(entry: WorkflowExecutionLogEntry): string {
     return "Crear tarea";
   }
   if (entry.step === "error") {
-    return "Error al ejecutar automatizacion";
+    return "Error al ejecutar automatización";
   }
   return entry.step ?? "Paso ejecutado";
 }
@@ -334,7 +334,7 @@ export function WorkflowsPage() {
     setSaving(false);
     if (!response.ok) {
       const payload = (await response.json()) as { error?: string };
-      setError(payload.error ?? "No se pudo guardar la automatizacion");
+      setError(payload.error ?? "No se pudo guardar la automatización");
       return;
     }
     setDialogOpen(false);
@@ -348,7 +348,7 @@ export function WorkflowsPage() {
       body: JSON.stringify({ isActive: !workflow.isActive })
     });
     if (!response.ok) {
-      setError("No se pudo actualizar la automatizacion");
+      setError("No se pudo actualizar la automatización");
       return;
     }
     await loadWorkflows();
@@ -357,7 +357,7 @@ export function WorkflowsPage() {
   async function deleteWorkflow(id: string): Promise<void> {
     const response = await fetch(`/api/workflows/${id}`, { method: "DELETE" });
     if (!response.ok) {
-      setError("No se pudo eliminar la automatizacion");
+      setError("No se pudo eliminar la automatización");
       return;
     }
     setSelectedId(null);
@@ -382,9 +382,9 @@ export function WorkflowsPage() {
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>{selectedId ? "Editar automatizacion" : "Crear automatizacion"}</DialogTitle>
+                  <DialogTitle>{selectedId ? "Editar automatización" : "Crear automatización"}</DialogTitle>
                   <DialogDescription className="text-sm text-muted-foreground">
-                    Configura el disparador, la accion principal y el estado de la automatizacion.
+                    Configurá el disparador, la acción principal y el estado de la automatización.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={(event) => void saveWorkflow(event)} className="space-y-4">
@@ -485,7 +485,7 @@ export function WorkflowsPage() {
                   </div>
 
                   <div className="rounded-lg border p-3">
-                    <h2 className="mb-3 text-sm font-semibold">Accion</h2>
+                    <h2 className="mb-3 text-sm font-semibold">Acción</h2>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="actionType">Tipo</Label>
@@ -526,7 +526,7 @@ export function WorkflowsPage() {
                         <Input id="actionSubject" value={form.actionSubject} onChange={(event) => updateForm("actionSubject", event.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="actionTitle">Titulo de tarea</Label>
+                        <Label htmlFor="actionTitle">Título de tarea</Label>
                         <Input id="actionTitle" value={form.actionTitle} onChange={(event) => updateForm("actionTitle", event.target.value)} />
                       </div>
                       <div className="space-y-2 md:col-span-2">
@@ -541,7 +541,7 @@ export function WorkflowsPage() {
                     Activa
                   </label>
                   <Button type="submit" disabled={saving}>
-                    {saving ? "Guardando..." : "Guardar automatizacion"}
+                    {saving ? "Guardando..." : "Guardar automatización"}
                   </Button>
                 </form>
               </DialogContent>
@@ -596,7 +596,7 @@ export function WorkflowsPage() {
                 <Button variant="outline" onClick={() => openEditDialog(selectedWorkflow)}>
                   Editar
                 </Button>
-                <Button variant="ghost" onClick={() => void deleteWorkflow(selectedWorkflow.id)} aria-label="Eliminar automatizacion">
+                <Button variant="ghost" onClick={() => void deleteWorkflow(selectedWorkflow.id)} aria-label="Eliminar automatización">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -670,7 +670,7 @@ export function WorkflowsPage() {
             </div>
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Crea una automatizacion para empezar.</div>
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Creá una automatización para empezar.</div>
         )}
       </main>
     </section>

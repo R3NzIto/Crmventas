@@ -13,7 +13,7 @@ const items = [
   { href: "/dashboard/inbox", label: "Inbox", icon: Inbox },
   { href: "/dashboard/workflows", label: "Automatizaciones", icon: Workflow },
   { href: "/dashboard/forms", label: "Formularios", icon: FileText },
-  { href: "/dashboard/settings", label: "Configuracion", icon: Settings }
+  { href: "/dashboard/settings", label: "Configuración", icon: Settings }
 ];
 
 export function DashboardNav() {

@@ -10,7 +10,7 @@ export default function DashboardSettingsRoute() {
   return (
     <section className="space-y-5 p-6">
       <div>
-        <h1 className="text-2xl font-semibold">Configuracion</h1>
+        <h1 className="text-2xl font-semibold">Configuración</h1>
         <p className="text-sm text-muted-foreground">Configura el workspace de tu agencia.</p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">

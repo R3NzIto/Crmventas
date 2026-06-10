@@ -29,7 +29,7 @@ export function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Email o contrasena invalidos.");
+      setError("Email o contraseña inválidos.");
       return;
     }
 
@@ -41,14 +41,14 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border bg-background p-6 shadow-sm">
       <div>
         <h1 className="text-xl font-semibold">CRM Ventas</h1>
-        <p className="text-sm text-muted-foreground">Ingresa al workspace de tu agencia.</p>
+        <p className="text-sm text-muted-foreground">Ingresá al workspace de tu agencia.</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" autoComplete="email" defaultValue="demo@crmventas.local" />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Contrasena</Label>
+        <Label htmlFor="password">Contraseña</Label>
         <Input id="password" name="password" type="password" autoComplete="current-password" defaultValue="Demo1234!" />
       </div>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -56,7 +56,7 @@ export function LoginForm() {
         {loading ? "Ingresando..." : "Ingresar"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        No tenes agencia?{" "}
+        ¿No tenés agencia?{" "}
         <Link className="font-medium text-foreground hover:underline" href="/register">
           Crear una
         </Link>

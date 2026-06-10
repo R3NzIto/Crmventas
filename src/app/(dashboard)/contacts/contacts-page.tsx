@@ -194,7 +194,7 @@ export function ContactsPage() {
             <DialogHeader>
               <DialogTitle>{editingContact ? "Editar contacto" : "Crear contacto"}</DialogTitle>
               <DialogDescription className="text-body-sm text-secondary">
-                Completa los datos principales para segmentar y dar seguimiento al contacto.
+                Completá los datos principales para segmentar y dar seguimiento al contacto.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={(event) => void saveContact(event)} className="grid gap-3">
@@ -276,7 +276,7 @@ export function ContactsPage() {
               ) : contacts.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-body-sm text-secondary">
-                    No se encontraron contactos.
+                    No se encontraron contactos con los filtros actuales.
                   </td>
                 </tr>
               ) : (

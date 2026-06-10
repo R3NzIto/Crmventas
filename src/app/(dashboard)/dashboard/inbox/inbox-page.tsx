@@ -125,8 +125,10 @@ export function InboxPage() {
   const [search, setSearch] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const selectedMessages = useMemo(() => selected?.messages ?? [], [selected]);
   const selectedDeal = selected?.contact.deals[0] ?? null;
@@ -179,6 +181,7 @@ export function InboxPage() {
     if (!selected || !content.trim()) {
       return;
     }
+    setActionError(null);
     const optimistic: InboxMessage = {
       id: crypto.randomUUID(),
       direction: "outbound",
@@ -189,34 +192,54 @@ export function InboxPage() {
     setSelected({ ...selected, messages: [...selected.messages, optimistic] });
     setContent("");
     setLoading(true);
-    const response = await fetch(`/api/conversations/${selected.id}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: optimistic.content })
-    });
-    setLoading(false);
-    if (response.ok) {
-      await loadSelected(selected.id);
-      await loadConversations();
+    try {
+      const response = await fetch(`/api/conversations/${selected.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: optimistic.content })
+      });
+      if (response.ok) {
+        await loadSelected(selected.id);
+        await loadConversations();
+        return;
+      }
+    } catch {
+      // The visible error below is intentionally generic for channel/network failures.
+    } finally {
+      setLoading(false);
     }
+    setActionError("No se pudo enviar el mensaje. Revisá la conexión del canal e intentá de nuevo.");
+    await loadSelected(selected.id);
   }
 
   async function patchConversation(action: "mark_as_read" | "close" | "reopen" | "snooze" | "create_deal" | "mark_hot_lead") {
     if (!selected) {
       return;
     }
-    const response = await fetch(`/api/conversations/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action })
-    });
-    if (response.ok && (action === "create_deal" || action === "mark_hot_lead")) {
-      const payload = (await response.json()) as { data: InboxConversation };
-      setSelected(payload.data);
-    } else {
-      await loadSelected(selected.id);
+    setActionError(null);
+    setActionLoading(true);
+    try {
+      const response = await fetch(`/api/conversations/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      if (!response.ok) {
+        setActionError("No se pudo actualizar la conversación. Intentá nuevamente.");
+        return;
+      }
+      if (action === "create_deal" || action === "mark_hot_lead") {
+        const payload = (await response.json()) as { data: InboxConversation };
+        setSelected(payload.data);
+      } else {
+        await loadSelected(selected.id);
+      }
+      await loadConversations();
+    } catch {
+      setActionError("No se pudo actualizar la conversación. Intentá nuevamente.");
+    } finally {
+      setActionLoading(false);
     }
-    await loadConversations();
   }
 
   return (
@@ -321,18 +344,19 @@ export function InboxPage() {
                 </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                <Button variant="outline" onClick={() => void patchConversation("mark_as_read")}>
+                <Button variant="outline" onClick={() => void patchConversation("mark_as_read")} disabled={actionLoading}>
                   Marcar leída
                 </Button>
-                <Button variant="outline" onClick={() => void patchConversation("snooze")}>
+                <Button variant="outline" onClick={() => void patchConversation("snooze")} disabled={actionLoading}>
                   <Moon className="h-4 w-4" />
                   Posponer
                 </Button>
-                <Button variant="outline" onClick={() => void patchConversation(selected.status === "OPEN" ? "close" : "reopen")}>
+                <Button variant="outline" onClick={() => void patchConversation(selected.status === "OPEN" ? "close" : "reopen")} disabled={actionLoading}>
                   {selected.status === "OPEN" ? "Cerrar" : "Reabrir"}
                 </Button>
               </div>
             </header>
+            {actionError ? <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-body-sm text-red-700">{actionError}</div> : null}
             {selected.leadQualifications[0] ? (
               <div className="border-b border-outline-variant bg-emerald-50 px-4 py-3 text-body-sm">
                 <div className="flex flex-wrap items-center gap-2">
@@ -367,12 +391,12 @@ export function InboxPage() {
                     </Link>
                   </Button>
                 ) : (
-                  <Button variant="outline" onClick={() => void patchConversation("create_deal")}>
+                  <Button variant="outline" onClick={() => void patchConversation("create_deal")} disabled={actionLoading}>
                     <CircleDollarSign className="h-4 w-4" />
                     Crear deal
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => void patchConversation("mark_hot_lead")}>
+                <Button variant="outline" onClick={() => void patchConversation("mark_hot_lead")} disabled={actionLoading}>
                   <Flame className="h-4 w-4" />
                   Hot lead
                 </Button>
@@ -407,9 +431,9 @@ export function InboxPage() {
             </div>
             <div className="flex gap-2 border-t border-outline-variant bg-surface-container-lowest p-4">
               <Input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Escribir respuesta" />
-              <Button onClick={() => void sendMessage()} disabled={loading}>
+              <Button onClick={() => void sendMessage()} disabled={loading || !content.trim()}>
                 <Send className="h-4 w-4" />
-                Enviar
+                {loading ? "Enviando..." : "Enviar"}
               </Button>
             </div>
           </>
@@ -455,7 +479,7 @@ export function InboxPage() {
                     <div className="h-2 rounded-full bg-primary" style={{ width: `${selected.leadQualifications[0].leadScore}%` }} />
                   </div>
                   <div className="mb-2 flex justify-between text-label-sm text-secondary">
-                    <span>Frio</span>
+                    <span>Frío</span>
                     <span>Caliente</span>
                   </div>
                   <p className="border-l-2 border-primary pl-2 text-body-sm text-on-surface">{selected.leadQualifications[0].recommendedAction}</p>

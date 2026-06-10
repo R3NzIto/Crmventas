@@ -1,6 +1,6 @@
 # CRM Ventas
 
-Plataforma SaaS multi-tenant tipo HighLevel para agencias digitales: CRM, pipelines, inbox unificado, formularios, automatizaciones y calificacion de leads con IA.
+Plataforma SaaS multi-tenant tipo HighLevel para agencias digitales: CRM, pipelines, inbox unificado, formularios, automatizaciones y calificación de leads con IA.
 
 ## Stack
 
